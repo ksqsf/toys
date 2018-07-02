@@ -1,0 +1,3 @@
+# rml
+
+recently played with nannou and found it quite appealing. wondering how it would perform when used as a foundation for something like qml... and this is the toy...
