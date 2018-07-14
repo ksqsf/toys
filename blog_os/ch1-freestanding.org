@@ -1,0 +1,84 @@
+* The =no_std= attribute
+  By default, Rust links the standard library.  Put =#![no_std]= in
+  the source file makes it absent.
+
+  #+BEGIN_SRC rust
+    #![no_std]
+
+    // Other code
+  #+END_SRC
+
+* Language items
+  Compiling this file will result in some obscure errors.
+  
+  #+BEGIN_SRC text
+    error: language item required, but not found: `panic_impl`
+    error: language item required, but not found: `eh_personality`
+  #+END_SRC
+
+** =eh_personality= for stack unwinding
+   =eh_personality= is for stack unwinding.  We can replace this
+   behavior (for =panic=) with a simple =abort= by putting this in
+   =Cargo.toml=.
+
+   #+BEGIN_SRC toml
+     [profile.dev]
+     panic = "abort"
+
+     [profile.release]
+     panic = "abort"
+   #+END_SRC
+
+** =panic_impl= for panic
+   We must provide a panic implementation.
+
+   #+BEGIN_SRC rust
+     #![feature(panic_implementation)]
+
+     #[panic_implementation]
+     #[no_mangle]
+     pub fn panic(_info: &PanicInfo) -> ! {
+	 loop {}
+     }
+   #+END_SRC
+
+* The entry point
+  However, this code still fails to compile, the compiler complaining
+  "requires start lang item."  Here, the =start= function is the
+  actual entry point of the program.
+
+  #+BEGIN_SRC rust
+    #![no_main]
+
+    #[no_mangle]
+    pub extern "C" fn _start() -> ! {
+	loop {}
+    }
+  #+END_SRC
+
+  The =no_main= attribute informs the compiler that =main= is
+  intentionally absent.  Note that =#[no_mangle]= and =extern "C"= are
+  required.
+
+* Don't link libc
+  When you try to compile the code, it fails with
+  #+BEGIN_SRC text
+    error: linking with `cc` failed: exit code: 1
+      |
+      = note: "cc" "-Wl,--as-needed" "-Wl,-z,noexecstack" "-m64" "-L" "/home/ksqsf/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib" "/home/ksqsf/blog_os/target/debug/deps/blog_os-df63eb7d3b79a6b3.2q644ojj2xqxddld.rcgu.o" "-o" "/home/ksqsf/blog_os/target/debug/deps/blog_os-df63eb7d3b79a6b3" "-Wl,--gc-sections" "-pie" "-Wl,-z,relro,-z,now" "-nodefaultlibs" "-L" "/home/ksqsf/blog_os/target/debug/deps" "-L" "/home/ksqsf/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib" "-Wl,-Bstatic" "/home/ksqsf/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib/libcore-df1c4191c1ed4f51.rlib" "/home/ksqsf/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib/libcompiler_builtins-2de2574d9a395872.rlib" "-Wl,-Bdynamic"
+      = note: /home/ksqsf/blog_os/target/debug/deps/blog_os-df63eb7d3b79a6b3.2q644ojj2xqxddld.rcgu.o：在函数‘_start’中：
+	      /home/ksqsf/blog_os/src/main.rs:9: _start 的多重定义
+	      /usr/lib/gcc/x86_64-linux-gnu/6/../../../x86_64-linux-gnu/Scrt1.o:(.text+0x0)：第一次在此定义
+	      /usr/lib/gcc/x86_64-linux-gnu/6/../../../x86_64-linux-gnu/Scrt1.o：在函数‘_start’中：
+	      (.text+0x12)：对‘__libc_csu_fini’未定义的引用
+	      /usr/lib/gcc/x86_64-linux-gnu/6/../../../x86_64-linux-gnu/Scrt1.o：在函数‘_start’中：
+	      (.text+0x19)：对‘__libc_csu_init’未定义的引用
+	      /usr/lib/gcc/x86_64-linux-gnu/6/../../../x86_64-linux-gnu/Scrt1.o：在函数‘_start’中：
+	      (.text+0x20)：对‘main’未定义的引用
+	      /usr/lib/gcc/x86_64-linux-gnu/6/../../../x86_64-linux-gnu/Scrt1.o：在函数‘_start’中：
+	      (.text+0x26)：对‘__libc_start_main’未定义的引用
+	      collect2: error: ld returned 1 exit status
+  #+END_SRC
+
+  Obviously, =ld= tries to link =libc=.  We can override this behavior
+  by compiling with ~cargo rustc -- -Z pre-link-arg=-nostartfiles~.

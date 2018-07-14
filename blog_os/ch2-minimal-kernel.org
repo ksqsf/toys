@@ -1,0 +1,111 @@
+* Build for another target
+  Cargo builds for the host system by default, which is clearly
+  unwanted for kernel development.
+
+  We can specify the target with =--target= parameter with one of the
+  platforms listed [[https://forge.rust-lang.org/platform-support.html][here]].  However, none of them fit the need of a
+  kernel.
+
+  Fortunately, Rust allows us to define our own target through a JSON
+  file.
+
+  #+BEGIN_SRC json
+    {
+	"llvm-target": "x86_64-unknown-none",
+	"data-layout": "e-m:e-i64:64-f80:128-n8:16:32:64-S128",
+	"arch": "x86_64",
+	"target-endian": "little",
+	"target-pointer-width": "64",
+	"target-c-int-width": "32",
+	"os": "none",
+	"executables": true,
+	"linker-flavor": "ld",
+	"panic-strategy": "abort",
+	"disable-redzone": true,
+	"features": "-mmx,-sse,+soft-float",
+    }
+  #+END_SRC
+
+  A few notes:
+  1. OS is "none" for =llvm-target= and =os= fields, because our
+     kernel runs on bare metal.
+  2. Use =ld= instead of =lld= used by the original post. LLVM seems
+     to default to "_start", the convention of Linux, and =ld= and
+     =lld= support it.
+  3. Does not support stack unwinding on panic (can remove ~panic =
+     "abort"~ from Cargo.toml)
+  4. Disable a certain stack pointer optimization called the "red
+     zone", because we'll handle interrupts at some point
+  5. Disable MMX and SSE because those registers are too large and
+     cause performance problems
+
+  But ~cargo build --target=x86_64-blog_os.json~ will fail with
+  #+BEGIN_SRC text
+       Compiling blog_os v0.1.0 (file:///home/ksqsf/blog_os)
+    error[E0463]: can't find crate for `core`
+      |
+      = note: the `x86_64-blog_os-12315928125335726668` target may not be installed
+  #+END_SRC
+
+  This is because the core library is shipped precompiled with Rust.
+  Here we need a wrapper tool =cargo-xbuild= that rebuilds the core
+  library for us.
+
+  #+BEGIN_SRC bash
+    cargo install cargo-xbuild
+    cargo xbuild --target x86_64-blog_os.json
+  #+END_SRC
+
+  This time, it worked. =cargo xbuild= cross-compiles =core=,
+  =compiler_builtins= and =alloc=.
+* Print to screen
+  Our =_start= is empty. The easiest way to print "Hello, world" is to
+  use VGA buffer, which is a special buffer mapped to memory.
+
+  #+BEGIN_SRC rust
+    static HELLO: &[u8] = b"Hello World!";
+
+    #[no_mangle]
+    pub extern "C" fn _start() -> ! {
+	let vga_buffer = 0xb8000 as *mut u8;
+
+	for (i, &byte) in HELLO.iter().enumerate() {
+	    unsafe {
+		,*vga_buffer.offset(i as isize * 2) = byte;
+		,*vga_buffer.offset(i as isize * 2 + 1) = 0xb;
+	    }
+	}
+
+	loop {}
+    }
+  #+END_SRC
+
+  This code is quite self-explanatory. =0xb= is light cyan.
+* Create a Bootimage
+  #+BEGIN_SRC bash
+    cargo install bootimage
+    bootimage build --target x86_64-blog_os.json
+  #+END_SRC
+
+  =bootimage= is a tool written by the original author. It compiles
+  our kernel to an ELF file, downloads a [[https://github.com/rust-osdev/bootloader][precompiled bootloader]], and
+  appends bytes of the kernel to that bootloader.
+
+  When booted, the bootloader reads and parses the appended ELF file,
+  maps the program segments to virtual addresses in the page tables,
+  zeros the =.bss= section, sets up a stack, and finally reads the
+  entry point address (=_start=) and jumps to it.
+
+  We can add a section to Cargo.toml.
+  #+BEGIN_SRC toml
+    [package.metadata.bootimage]
+    default-target = "x86_64-blog_os.json"
+  #+END_SRC
+* Boot it
+  #+BEGIN_SRC bash
+    qemu-system-x86_64 -drive format=raw,file=target/x86_64-blog_os/debug/bootimage-blog_os.bin
+    # or, alternatively
+    bootimage run
+  #+END_SRC
+
+  
