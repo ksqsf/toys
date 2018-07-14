@@ -1,4 +1,4 @@
-all: hello bp
+all: hello bp work
 
 hello.o: hello.asm
 	nasm -f elf64 hello.asm
@@ -12,8 +12,12 @@ hello: hello.o
 bp: bp.o
 	ld bp.o -o bp -Ttext=4000b0
 
+work: work.c
+	gcc work.c -o work -g
+
 clean:
 	rm -f hello.o hello
 	rm -f bp.o bp
+	rm -f work
 
 .PHONY: clean
