@@ -1,0 +1,6 @@
+[package]
+name = "fa"
+version = "0.1.0"
+authors = ["_rika <i@ksqsf.moe>"]
+
+[dependencies]
