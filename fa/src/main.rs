@@ -1,5 +1,51 @@
 type StateId = usize;
 
+macro_rules! states {
+    (  ) => {
+        vec![]
+    };
+
+    ( [ $a: expr ] ) => {
+        vec![State::new($a)]
+    };
+
+    ( [ $a:expr; $( ($c:expr, $id:expr) ),* ] ) => {
+        {
+            let mut t = Vec::new();
+            $(
+                t.push(($c, $id));
+            )*
+            vec![
+                State::with_transitions($a, t)
+            ]
+        }
+    };
+
+    ( [ $a:expr ], $( $tt:tt )* ) => {
+        {
+            let mut states = Vec::new();
+            let mut tail = states!($($tt)*);
+            states.push(State::new($a));
+            states.append(&mut tail);
+            states
+        }
+    };
+
+    ( [$a:expr; $( ($c:expr, $id:expr) ),*], $( $tt:tt )* ) => {
+        {
+            let mut states = Vec::new();
+            let mut tail = states!($($tt)*);
+            let mut transitions = Vec::new();
+            $(
+                transitions.push(($c, $id));
+            )*
+            states.push(State::with_transitions($a, transitions));
+            states.append(&mut tail);
+            states
+        }
+    }
+}
+
 /// A struct representing a state.  However, different from a "pure"
 /// state, this struct also maintains how states are transitioned,
 /// ie. the transition function is embedded here.
@@ -84,12 +130,12 @@ fn main() -> std::io::Result<()> {
     use std::io;
     use std::io::{BufRead, BufReader};
 
-    let states = vec![
-        State::new(false),
-        State::with_transitions(false, vec![('a', 2), ('b', 1)]),
-        State::with_transitions(false, vec![('b', 3)]),
-        State::new(true),
-    ];
+    let states = states!{
+        [false],
+        [false; ('a', 2), ('b', 1)],
+        [false; ('b', 3)],
+        [true]
+    };
     let dfa = DFA::new(1, &states);
 
     let mut reader = BufReader::new(io::stdin());
