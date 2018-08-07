@@ -1,7 +1,7 @@
 //! This is a proposition calculus demonstration.
 
-mod slogic; // static
-mod logic;  // dynamic
+pub mod slogic; // static
+pub mod logic;  // dynamic
 
 fn main() {
 }

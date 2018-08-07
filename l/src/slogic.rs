@@ -1,8 +1,33 @@
 //! Static logic encoded in the Rust typing system.
+//!
+//! This may seem cool at first, for that it doesn't do any dynamic
+//! allocation, and there's no copying in constructing new
+//! propositions.  However, it doesn't work at runtime.
+//!
+//! ```
+//! let operators = Stack::new();
+//! let operands = Stack::new();  // Don't know type actual type here!
+//! 
+//! match user_input() {
+//!     Kind::Atom(n) => operands.push(Atom(n)),
+//!     Kind::Imply => {
+//!         let a = operands.pop(); // which type is a?
+//!         let b = operands.pop(); // which type is b?
+//!         operands.push(a.imply(b));
+//!     }
+//!     _ => unimplemented!()
+//! }
+//! ```
+//!
+//! OK, now that static approach is not feasible, let's turn to
+//! a dynamic approach.
+
 use std::fmt;
 
 /// Traits of a proposition.
 pub trait Prop {
+    /// Construct a new implication whose antecedent is self and
+    /// whose seccedent is `s`.
     fn imply<S>(self, s: S) -> Imply<Self, S>
     where
         Self: Sized,
@@ -11,6 +36,7 @@ pub trait Prop {
         Imply { antecedent: self, seccedent: s }
     }
 
+    /// Construct a new proposition with a negation in front of it.
     fn negate(self) -> Negate<Self>
     where
         Self : Sized
@@ -23,6 +49,11 @@ pub trait Prop {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Atom(pub u32);
 
+/// Implication.
+///
+/// Instances can only be obtained from [`Prop::imply`][imply].
+///
+/// [imply]: trait.Prop.html#method.imply
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Imply<T, U>
 where
@@ -33,6 +64,11 @@ where
     seccedent: U
 }
 
+/// Negation.
+///
+/// Instances can only be obtained from [`Prop::negate`][negate].
+///
+/// [negate]: trait.Prop.html#method.negate
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Negate<T>
 where
