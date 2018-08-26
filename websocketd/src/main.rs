@@ -1,6 +1,7 @@
 extern crate tokio;
 extern crate futures;
-extern crate http;
+extern crate sha1;
+extern crate base64;
 
 #[macro_use]
 extern crate failure;
@@ -24,5 +25,11 @@ fn main() -> Result<(), Error> {
 }
 
 fn handle_connection(stream: TcpStream) {
-    handshake::handshake(stream)
+    let conn = handshake::handshake(stream)
+        .and_then(|_| {
+            println!("Closing");
+            Ok(())
+        });
+
+    tokio::spawn(conn);
 }

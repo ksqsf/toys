@@ -4,17 +4,22 @@ use failure::Error;
 use futures::future::Either;
 use tokio::{
     prelude::*,
-    executor::spawn,
     net::TcpStream,
     codec::{
         Decoder,
         LinesCodec
     }
 };
+use sha1::Sha1;
+use base64;
 
-pub fn handshake(stream: TcpStream) {
-    let handshaker = LinesCodec::new()
+pub fn handshake(stream: TcpStream)
+    -> impl Future<Item = (), Error = ()>
+{
+    let (sink, lines) = LinesCodec::new()
         .framed(stream)
+        .split();
+    lines
         .into_future()
         .map_err(|(e, _)| Error::from(e))
         .and_then(|(first, lines)| {
@@ -37,7 +42,7 @@ pub fn handshake(stream: TcpStream) {
             }));
 
             // Collect headers
-            let headers = lines
+            let continuation = lines
                 .map_err(Error::from)
                 .take_while(|line| Ok(line != ""))
                 .fold(builder, |builder, line| {
@@ -58,12 +63,40 @@ pub fn handshake(stream: TcpStream) {
                 })
                 .and_then(|req| {
                     println!("Request = {:#?}", req);
-                    Ok(())
+
+                    // TODO: various checks including Connection, Origin, Hostname
+                    // For now, just let it go
+
+                    let req = req.lock().unwrap();
+                    let key = match req.headers.get("Sec-WebSocket-Key") {
+                        Some(key) => key,
+                        None => bail!("Sec-WebSocket-Key is missing")
+                    };
+
+                    let mut m = Sha1::new();
+                    m.update(key.as_bytes());
+                    m.update(b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
+                    let sha1sum = m.digest().bytes();
+                    let secret = base64::encode(&sha1sum);
+                    println!("secret={}", secret);
+
+                    Ok(secret)
+                })
+                .and_then(|secret| {
+                    // Handshake is successful
+                    sink.send(format!("HTTP/1.1 101 Switching Protocols\r
+Upgrade: websocket\r
+Connection: Upgrade\r
+Sec-WebSocket-Accept: {}\r
+\r",
+                                      secret))
+                        .map(|_| ())
+                        .map_err(Error::from)
                 });
-            Either::B(headers)
+
+            Either::B(continuation)
         })
-        .map_err(|e| println!("During handshake: {:?}", e));
-    spawn(handshaker);
+        .map_err(|e| println!("During handshake: {:?}", e))
 }
 
 fn extract_resource(request: &str) -> Result<&str, Error> {

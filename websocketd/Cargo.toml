@@ -7,4 +7,5 @@ authors = ["_rika <i@ksqsf.moe>"]
 tokio = "0.1.8"
 futures = "0.1.23"
 failure = "0.1.2"
-http = "0.1.10"
+sha1 = "0.6.0"
+base64 = "0.9.2"
