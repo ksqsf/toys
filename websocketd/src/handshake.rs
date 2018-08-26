@@ -4,7 +4,6 @@ use failure::Error;
 use futures::future::Either;
 use tokio::{
     prelude::*,
-    net::TcpStream,
     codec::{
         Decoder,
         LinesCodec
@@ -12,20 +11,22 @@ use tokio::{
 };
 use sha1::Sha1;
 use base64;
+use stream::TcpStream;
 
 pub fn handshake(stream: TcpStream)
-    -> impl Future<Item = (), Error = ()>
+    -> impl Future<Item = TcpStream, Error = ()>
 {
     let (sink, lines) = LinesCodec::new()
-        .framed(stream)
+        .framed(stream.clone())
         .split();
+
     lines
         .into_future()
         .map_err(|(e, _)| Error::from(e))
         .and_then(|(first, lines)| {
             let first = match first {
                 Some(first) => first,
-                None => return Either::A(future::ok(()))
+                None => return Either::A(future::err(format_err!("Client exit early")))
             };
             println!("First line: {}", first);
 
@@ -83,14 +84,13 @@ pub fn handshake(stream: TcpStream)
                     Ok(secret)
                 })
                 .and_then(|secret| {
-                    // Handshake is successful
                     sink.send(format!("HTTP/1.1 101 Switching Protocols\r
 Upgrade: websocket\r
 Connection: Upgrade\r
 Sec-WebSocket-Accept: {}\r
 \r",
                                       secret))
-                        .map(|_| ())
+                        .map(|_| stream)
                         .map_err(Error::from)
                 });
 
