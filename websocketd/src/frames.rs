@@ -159,7 +159,24 @@ impl FramesCodec {
             return Ok(None)
         }
 
+        let mask_key = {
+            if self.has_mask {
+                [src[header_len as usize - 4],
+                 src[header_len as usize - 3],
+                 src[header_len as usize - 2],
+                 src[header_len as usize - 1]]
+            } else {
+                [0; 4]
+            }
+        };
         let mut src = src.split_to(header_len as usize + payload_len as usize);
+        let app_data = {
+            let mut d = src.split_off(header_len as usize);
+            for (i, c) in d.as_mut().iter_mut().enumerate() {
+                *c ^= mask_key[i % 4];
+            }
+            d
+        };
         let frame = Frame {
             fin: ((src[0]  >> 7) & 1) == 1,
             rsv1: ((src[0]  >> 6) & 1) == 1,
@@ -174,19 +191,10 @@ impl FramesCodec {
                 10 => Opcode::Pong,
                 _ => return Err(DecodeError::InvalidOpcodeError)
             },
-            mask: ((src[1] >> 7) & 1) == 1,
+            mask: self.has_mask,
             payload_len,
-            mask_key: {
-                if self.has_mask {
-                    [src[header_len as usize - 4],
-                     src[header_len as usize - 3],
-                     src[header_len as usize - 2],
-                     src[header_len as usize - 1]]
-                } else {
-                    [0; 4]
-                }
-            },
-            app_data: src.split_off(header_len as usize)
+            mask_key,
+            app_data
         };
         self.payload_len = None;
         Ok(Some(frame))
