@@ -9,6 +9,7 @@ extern crate failure;
 
 pub mod stream;
 pub mod handshake;
+pub mod frames;
 
 use failure::Error;
 use tokio::prelude::*;
