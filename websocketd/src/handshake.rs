@@ -36,11 +36,12 @@ use tokio::{
     codec::{
         Decoder,
         LinesCodec
-    }
+    },
+    net::TcpStream
 };
 use sha1::Sha1;
 use base64;
-use stream::TcpStream;
+use stream::CloneableTcpStream;
 
 /// Create a future which tries to handshake with `TcpStream` and, if
 /// successful, evaluates to the stream itself.
@@ -51,10 +52,12 @@ use stream::TcpStream;
 /// On the process of handshaking, see [module-level](./index.html)
 /// documentation for more.
 pub fn handshake(stream: TcpStream)
-    -> impl Future<Item = TcpStream, Error = ()>
+    -> impl Future<Item = CloneableTcpStream, Error = ()>
 {
+    let cloneable_stream = CloneableTcpStream::new(stream);
+
     let (sink, lines) = LinesCodec::new()
-        .framed(stream.clone())
+        .framed(cloneable_stream.clone())
         .split();
 
     lines
@@ -121,13 +124,16 @@ pub fn handshake(stream: TcpStream)
                     Ok(secret)
                 })
                 .and_then(|secret| {
-                    sink.send(format!("HTTP/1.1 101 Switching Protocols\r
-Upgrade: websocket\r
-Connection: Upgrade\r
-Sec-WebSocket-Accept: {}\r
-\r",
-                                      secret))
-                        .map(|_| stream)
+                    sink.send(format!(
+                        concat!(
+                            "HTTP/1.1 101 Switching Protocols\r\n",
+                            "Upgrade: websocket\r\n",
+                            "Connection: Upgrade\r\n",
+                            "Sec-WebSocket-Accept: {}\r\n",
+                            "\r"
+                        ), secret)
+                    )
+                        .map(|_| cloneable_stream)
                         .map_err(Error::from)
                 });
 
