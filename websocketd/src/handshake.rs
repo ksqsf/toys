@@ -1,3 +1,32 @@
+//! # Handshake
+//!
+//! WebSocket handshaking is layered above HTTP and makes use of HTTP
+//! upgrades.  It's designed to avoid attacks initiaied inside a Web
+//! browser.
+//!
+//! ## Client behaviors
+//! The client will request the server like this
+//! ```text
+//! GET /chat HTTP/1.1
+//! Upgrade: websocket
+//! Connection: Upgrade
+//! Host: example.com
+//! Origin: http://example.com
+//! Sec-WebSocket-Key: <key>
+//! Sec-WebSocket-Version: 13
+//! ```
+//!
+//! ## Server behaviors
+//! A successful handshake response:
+//! ```text
+//! HTTP/1.1 101 Switching Protocols
+//! Upgrade: websocket
+//! Connection: Upgrade
+//! Sec-WebSocket-Accept: <a generated key>
+//! ```
+//!
+//! When errors occur, an appropriate HTTP error status can be
+//! returned.
 use std::sync::{Arc, Mutex};
 use std::collections::BTreeMap;
 use failure::Error;
@@ -13,6 +42,14 @@ use sha1::Sha1;
 use base64;
 use stream::TcpStream;
 
+/// Create a future which tries to handshake with `TcpStream` and, if
+/// successful, evaluates to the stream itself.
+///
+/// Note that current implementation will consume the error and log it
+/// instead of propagating.
+///
+/// On the process of handshaking, see [module-level](./index.html)
+/// documentation for more.
 pub fn handshake(stream: TcpStream)
     -> impl Future<Item = TcpStream, Error = ()>
 {
@@ -36,7 +73,7 @@ pub fn handshake(stream: TcpStream)
                 Err(e) => return Either::A(future::err(e))
             };
 
-            // Create a new builder
+            // Create a new request builder
             let builder = Arc::new(Mutex::new(HttpRequest {
                 resource: resource.to_string(),
                 headers: BTreeMap::new()

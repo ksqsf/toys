@@ -6,8 +6,8 @@ extern crate base64;
 #[macro_use]
 extern crate failure;
 
-mod stream;
-mod handshake;
+pub mod stream;
+pub mod handshake;
 
 use failure::Error;
 use tokio::prelude::*;
