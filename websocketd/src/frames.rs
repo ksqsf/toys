@@ -114,7 +114,7 @@ pub struct FramesCodec {
 }
 
 impl FramesCodec {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Default::default()
     }
 
@@ -176,13 +176,15 @@ impl FramesCodec {
             },
             mask: ((src[1] >> 7) & 1) == 1,
             payload_len,
-            mask_key: if self.has_mask {
-                [src[header_len as usize - 4],
-                 src[header_len as usize - 3],
-                 src[header_len as usize - 2],
-                 src[header_len as usize - 1]]
-            } else {
-                [0; 4]
+            mask_key: {
+                if self.has_mask {
+                    [src[header_len as usize - 4],
+                     src[header_len as usize - 3],
+                     src[header_len as usize - 2],
+                     src[header_len as usize - 1]]
+                } else {
+                    [0; 4]
+                }
             },
             app_data: src.split_off(header_len as usize)
         };

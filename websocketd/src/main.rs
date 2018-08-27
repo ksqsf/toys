@@ -14,6 +14,7 @@ pub mod frames;
 use failure::Error;
 use tokio::prelude::*;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::codec::Decoder;
 
 fn main() -> Result<(), Error> {
     let local_addr = "127.0.0.1:54321".parse()?;
@@ -30,9 +31,14 @@ fn main() -> Result<(), Error> {
 fn handle_connection(stream: TcpStream) {
     let conn = handshake::handshake(stream)
         .and_then(|cloneable_stream| Ok(cloneable_stream.into_inner()))
-        .and_then(|_stream| {
-            println!("Closing");
-            Ok(())
+        .and_then(|stream| {
+            frames::FramesCodec::new()
+                .framed(stream)
+                .for_each(|frame| {
+                    println!("{:#?}", frame);
+                    Ok(())
+                })
+                .map_err(|e| println!("Frames: {:?}", e))
         });
 
     tokio::spawn(conn);
