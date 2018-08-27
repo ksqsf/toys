@@ -42,7 +42,7 @@ use bytes::{BytesMut, BufMut};
 ///
 /// Represented as `u8`
 #[repr(u8)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Opcode {
     Continutation = 0,
     Text,
@@ -99,40 +99,52 @@ impl From<Error> for EncodeError {
     }
 }
 
+#[derive(Default, Clone, Debug)]
 pub struct FramesCodec {
+    /// This field is only valid when payload_len is not none.
+    has_mask: bool,
+
     /// Control part + payload_len + mask_key
-    header_len: Option<u64>,
+    ///
+    /// This field is only valid when payload_len is not none.
+    header_len: u64,
 
     /// Known payload length
     payload_len: Option<u64>
 }
 
 impl FramesCodec {
-    fn get_payload_len_and_construct(&mut self, src: &mut BytesMut) -> Result<Option<Frame>, DecodeError> {
-        debug_assert!(src.len() >= 2);
+    fn new() -> Self {
+        Default::default()
+    }
 
+    fn get_payload_len_and_construct(&mut self, src: &mut BytesMut) -> Result<Option<Frame>, DecodeError> {
+        self.has_mask = ((src[1] >> 7) & 1) == 1;
         let mut payload_len: u64 = (src[1] & 0b01111111) as u64;
         if payload_len == 126 && src.len() < 4 || payload_len == 127 && src.len() < 10 {
             return Ok(None)
         }
         if payload_len == 126 {
-            self.header_len = Some(2+2+4);
+            self.header_len = 2 + 2;
             payload_len =
-                (src[2] << 8) as u64
+                (src[2] as u64) << 8
                 | (src[3]) as u64;
         } else if payload_len == 127 {
-            self.header_len = Some(2 + 8 + 4);
+            self.header_len = 2 + 8;
             payload_len =
-                (src[2] << 56) as u64
-                | (src[3] << 48) as u64
-                | (src[4] << 40) as u64
-                | (src[5] << 32) as u64
-                | (src[6] << 24) as u64
-                | (src[7] << 16) as u64
-                | (src[8] << 8) as u64
+                (src[2] as u64) << 56
+                | (src[3] as u64) << 48
+                | (src[4] as u64) << 40
+                | (src[5] as u64) << 32
+                | (src[6] as u64) << 24
+                | (src[7] as u64) << 16
+                | (src[8] as u64) << 8
                 | (src[9]) as u64;
         } else {
-            self.header_len = Some(2+4);
+            self.header_len = 2;
+        }
+        if self.has_mask {
+            self.header_len += 4;
         }
         self.payload_len = Some(payload_len);
 
@@ -140,7 +152,7 @@ impl FramesCodec {
     }
 
     fn construct(&mut self, src: &mut BytesMut) -> Result<Option<Frame>, DecodeError> {
-        let header_len = self.header_len.unwrap();
+        let header_len = self.header_len;
         let payload_len = self.payload_len.unwrap();
 
         if src.len()  < header_len as usize + payload_len as usize {
@@ -164,13 +176,16 @@ impl FramesCodec {
             },
             mask: ((src[1] >> 7) & 1) == 1,
             payload_len,
-            mask_key: [src[header_len as usize - 4],
-                       src[header_len as usize - 3],
-                       src[header_len as usize - 2],
-                       src[header_len as usize - 1]],
+            mask_key: if self.has_mask {
+                [src[header_len as usize - 4],
+                 src[header_len as usize - 3],
+                 src[header_len as usize - 2],
+                 src[header_len as usize - 1]]
+            } else {
+                [0; 4]
+            },
             app_data: src.split_off(header_len as usize)
         };
-        self.header_len = None;
         self.payload_len = None;
         Ok(Some(frame))
     }
@@ -196,14 +211,14 @@ impl Encoder for FramesCodec {
     fn encode(&mut self, frame: Frame, sink: &mut BytesMut) -> Result<(), EncodeError> {
         sink.reserve(2 + 8 + 4 + frame.payload_len as usize);
 
-        sink.put_u8((frame.fin as u8) << 3  |
-                    (frame.rsv1 as u8) << 2 |
-                    (frame.rsv2 as u8) << 1 |
-                    frame.rsv3 as u8);
+        sink.put_u8((frame.fin as u8) << 7  |
+                    (frame.rsv1 as u8) << 6 |
+                    (frame.rsv2 as u8) << 5 |
+                    (frame.rsv3 as u8) << 4 |
+                    (frame.opcode as u8));
 
         if frame.payload_len < 126 {
-            sink.put_u8((frame.mask as u8) << 7 |
-                        frame.payload_len as u8);
+            sink.put_u8((frame.mask as u8) << 7 | frame.payload_len as u8);
         } else if frame.payload_len <= u16::MAX as u64 {
             sink.put_u8((frame.mask as u8) << 7 | 126);
             sink.put_u16_be(frame.payload_len as u16);
@@ -212,9 +227,94 @@ impl Encoder for FramesCodec {
             sink.put_u64_be(frame.payload_len);
         }
 
-        sink.put(&frame.mask_key[..]);
+        if frame.mask {
+            sink.put(&frame.mask_key[..]);
+        }
         sink.put(&frame.app_data);
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_decode1() {
+        let mut buf = BytesMut::with_capacity(64);
+        let mut codec = FramesCodec::new();
+
+        buf.put_u8(0b1000_0000);
+        buf.put_u8(0b0000_0001);
+        buf.put_u8(b'a');
+
+        let frame = codec.decode(&mut buf).unwrap().unwrap();
+        assert_eq!(frame.mask, false);
+        assert_eq!(frame.fin, true);
+        assert_eq!(frame.mask_key, [0; 4]);
+        assert_eq!(frame.opcode, Opcode::Continutation);
+        assert_eq!(frame.payload_len, 1);
+        assert_eq!(frame.app_data[0], b'a');
+    }
+
+    #[test]
+    fn test_decode2() {
+        let mut buf = BytesMut::with_capacity(64 + 65538);
+        let mut codec = FramesCodec::new();
+        let mask_key = [0, 1, 2, 3];
+
+        buf.put_u8(0b0100_0001);
+        buf.put_u8(0b1111_1111);
+        buf.put_u64_be(65538);
+        buf.put(&mask_key[..]);
+        for _ in 0..65538 {
+            buf.put_u8(b'a');
+        }
+
+        let frame = codec.decode(&mut buf).unwrap().unwrap();
+        assert_eq!(frame.fin, false);
+        assert_eq!(frame.rsv1, true);
+        assert_eq!(frame.mask, true);
+        assert_eq!(frame.mask_key, mask_key);
+        assert_eq!(frame.opcode, Opcode::Text);
+        assert_eq!(frame.payload_len, 65538);
+        assert_eq!(&frame.app_data[0..3], b"aaa");
+        assert_eq!(frame.app_data[65537], b'a');
+    }
+
+    #[test]
+    fn test_encode1() {
+        let frame = Frame {
+            fin: true,
+            rsv1: false,
+            rsv2: false,
+            rsv3: false,
+            opcode: Opcode::Ping,
+            mask: true,
+            payload_len: 128,
+            mask_key: [4, 3, 2, 1],
+            app_data: {
+                let mut buf = BytesMut::with_capacity(128);
+                for _ in 0..128 {
+                    buf.put_u8(b'X');
+                }
+                buf
+            }
+        };
+        let mut codec = FramesCodec::new();
+        let mut buf = BytesMut::with_capacity(256);
+        codec.encode(frame, &mut buf).expect("encode");
+        assert_eq!(buf[0], 0b1000_1001);
+        assert_eq!(buf[1], 0b1111_1110);
+        assert_eq!(buf[2], 0b0000_0000);
+        assert_eq!(buf[3], 0b1000_0000);
+        assert_eq!(buf[4], 4);
+        assert_eq!(buf[5], 3);
+        assert_eq!(buf[6], 2);
+        assert_eq!(buf[7], 1);
+        for &c in &buf[8..8+128] {
+            assert_eq!(c, b'X');
+        }
     }
 }
