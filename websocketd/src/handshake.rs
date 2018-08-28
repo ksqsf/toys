@@ -124,15 +124,13 @@ pub fn handshake(stream: TcpStream)
                     Ok(secret)
                 })
                 .and_then(|secret| {
-                    sink.send(format!(
-                        concat!(
-                            "HTTP/1.1 101 Switching Protocols\r\n",
-                            "Upgrade: websocket\r\n",
-                            "Connection: Upgrade\r\n",
-                            "Sec-WebSocket-Accept: {}\r\n",
-                            "\r"
-                        ), secret)
-                    )
+                    sink.send(format!(concat!(
+                        "HTTP/1.1 101 Switching Protocols\r\n",
+                        "Upgrade: websocket\r\n",
+                        "Connection: Upgrade\r\n",
+                        "Sec-WebSocket-Accept: {}\r\n",
+                        "\r"
+                    ), secret))
                         .map(|_| cloneable_stream)
                         .map_err(Error::from)
                 });

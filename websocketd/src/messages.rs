@@ -17,7 +17,7 @@ pub use frames::Opcode;
 
 /// WebSocket message.
 #[derive(Debug, Clone)]
-enum Message {
+pub enum Message {
     Text(BytesMut),
     Binary(BytesMut),
     Control(Opcode, BytesMut)
@@ -33,7 +33,7 @@ enum DecodeState {
 }
 
 #[derive(Clone, Debug)]
-struct MessagesCodec {
+pub struct MessagesCodec {
     opcode: Opcode,
     frames_codec: FramesCodec,
     state: DecodeState,
@@ -41,7 +41,7 @@ struct MessagesCodec {
 }
 
 impl MessagesCodec {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             opcode: Opcode::Continuation,
             frames_codec: FramesCodec::new(),
@@ -121,7 +121,7 @@ impl Encoder for MessagesCodec {
 }
 
 #[derive(Debug)]
-enum DecodeError {
+pub enum DecodeError {
     InterleavedFrames,
     FrameDecodeError(frames::DecodeError),
     IOError(Error)
@@ -140,7 +140,7 @@ impl From<frames::DecodeError> for DecodeError {
 }
 
 #[derive(Debug)]
-enum EncodeError {
+pub enum EncodeError {
     FrameEncodeError(frames::EncodeError),
     IOError(Error)
 }
