@@ -97,9 +97,12 @@ impl Frame {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum DecodeError {
-    InvalidOpcodeError,
+    #[fail(display = "Opcode {} is invalid", _0)]
+    InvalidOpcodeError(u8),
+
+    #[fail(display = "IO error: {}", _0)]
     IOError(Error)
 }
 
@@ -109,8 +112,9 @@ impl From<Error> for DecodeError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum EncodeError {
+    #[fail(display = "IO error: {}", _0)]
     IOError(Error)
 }
 
@@ -210,7 +214,7 @@ impl FramesCodec {
                 8 => Opcode::Close,
                 9 => Opcode::Ping,
                 10 => Opcode::Pong,
-                _ => return Err(DecodeError::InvalidOpcodeError)
+                _ => return Err(DecodeError::InvalidOpcodeError(src[0] & 0b1111))
             },
             mask: self.has_mask,
             payload_len,

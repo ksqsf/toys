@@ -6,6 +6,8 @@ extern crate base64;
 
 #[macro_use]
 extern crate failure;
+#[macro_use]
+extern crate failure_derive;
 
 pub mod stream;
 pub mod handshake;
@@ -38,17 +40,31 @@ fn echo_server(stream: TcpStream) {
             let codec = messages::MessagesCodec::new().framed(stream);
             let (writer, reader) = codec.split();
 
-            tokio::spawn(
-                writer.send(Message::Text(BytesMut::from("Hello, world")))
-                    .map(|_| ())
-                    .map_err(|e| println!("During send: {:?}", e))
-            );
-
             reader
-                .for_each(|message| {
+                .map_err(|e| Error::from(e))
+                .fold(writer.wait(), |mut writer, message| {
                     println!("{:?}", message);
-                    Ok(())
+                    match message {
+                        Message::Text(bytes) => {
+                            if let Err(e) = writer.send(Message::Text(bytes)) {
+                                return Err(Error::from(e))
+                            }
+                            if let Err(e) = writer.flush() {
+                                return Err(Error::from(e))
+                            }
+                        }
+                        Message::Binary(_payload) => {
+                            if let Err(e) = writer.send(Message::Text(BytesMut::from("<binary>"))) {
+                                return Err(Error::from(e))
+                            }
+                        }
+                        Message::Control(opcode, _payload) => {
+                            println!("Control frame with opcode={}", opcode as u8)
+                        }
+                    }
+                    Ok(writer)
                 })
+                .map(|_| ())
                 .map_err(|e| println!("Messages: {:?}", e))
         });
 

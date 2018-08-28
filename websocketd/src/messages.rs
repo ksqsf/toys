@@ -120,10 +120,15 @@ impl Encoder for MessagesCodec {
     }
 }
 
-#[derive(Debug)]
+#[derive(Fail, Debug)]
 pub enum DecodeError {
+    #[fail(display = "Interleaved frames in stream")]
     InterleavedFrames,
+
+    #[fail(display = "Frame decode error: {}", _0)]
     FrameDecodeError(frames::DecodeError),
+
+    #[fail(display = "IO error: {}", _0)]
     IOError(Error)
 }
 
@@ -139,9 +144,12 @@ impl From<frames::DecodeError> for DecodeError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Fail, Debug)]
 pub enum EncodeError {
+    #[fail(display = "Frame encode error: {}", _0)]
     FrameEncodeError(frames::EncodeError),
+
+    #[fail(display = "IO error: {}", _0)]
     IOError(Error)
 }
 

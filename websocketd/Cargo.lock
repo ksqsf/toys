@@ -571,6 +571,7 @@ dependencies = [
  "base64 0.9.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "bytes 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "failure_derive 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha1 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
