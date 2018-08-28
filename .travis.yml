@@ -1,0 +1,10 @@
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+cache: cargo
+env:
+  - TEST_DIR=websocketd
+script:
+  - cd $TEST_DIR && cargo build --verbose --all && cargo test --verbose --all
