@@ -32,7 +32,6 @@
 //!
 //! A few things to note:
 //! 1. Extension data is not supported.
-//! 2. Fragmentation is not supported.
 
 use std::u16;
 use std::io::Error;
@@ -46,12 +45,22 @@ use bytes::{BytesMut, BufMut};
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Opcode {
-    Continutation = 0,
+    Continuation = 0,
     Text,
     Binary,
     Close = 8,
     Ping,
     Pong
+}
+
+impl Opcode {
+    fn is_continuation(self) -> bool {
+        self == Opcode::Continuation
+    }
+
+    fn is_control(self) -> bool {
+        self as u8 >= 8
+    }
 }
 
 impl Default for Opcode {
@@ -64,18 +73,28 @@ impl Default for Opcode {
 ///
 /// See [module-level](./index.html) documentation for the physical
 /// format.
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct Frame {
-    fin: bool,           // 1 bit
-    rsv1: bool,          // 1 bit
-    rsv2: bool,          // 1 bit
-    rsv3: bool,          // 1 bit
-    opcode: Opcode,      // 4 bits (1 byte so far)
-    mask: bool,          // 1 bit
-    payload_len: u64,    // 7 bits + 0|2|8 bytes
-    mask_key: [u8; 4],       // 0|4 bytes
-    // ext_data: BytesMut,  // x bytes
-    app_data: BytesMut,  // y bytes
+    pub fin: bool,          // 1 bit
+    pub rsv1: bool,         // 1 bit
+    pub rsv2: bool,         // 1 bit
+    pub rsv3: bool,         // 1 bit
+    pub opcode: Opcode,     // 4 bits (1 byte so far)
+    pub mask: bool,         // 1 bit
+    pub payload_len: u64,   // 7 bits + 0|2|8 bytes
+    pub mask_key: [u8; 4],  // 0|4 bytes
+    //_ext_data: (),          // x bytes
+    pub app_data: BytesMut, // y bytes
+}
+
+impl Frame {
+    pub fn is_continuation(&self) -> bool {
+        self.opcode.is_continuation()
+    }
+
+    pub fn is_control(&self) -> bool {
+        self.opcode.is_control()
+    }
 }
 
 #[derive(Debug)]
@@ -185,7 +204,7 @@ impl FramesCodec {
             rsv2: ((src[0]  >> 5) & 1) == 1,
             rsv3: ((src[0]  >> 4) & 1) == 1,
             opcode: match src[0] & 0b1111 {
-                0 => Opcode::Continutation,
+                0 => Opcode::Continuation,
                 1 => Opcode::Text,
                 2 => Opcode::Binary,
                 8 => Opcode::Close,
@@ -196,7 +215,8 @@ impl FramesCodec {
             mask: self.has_mask,
             payload_len,
             mask_key,
-            app_data
+            app_data,
+            ..Default::default()
         };
         self.payload_len = None;
         Ok(Some(frame))
@@ -265,7 +285,7 @@ mod tests {
         assert_eq!(frame.mask, false);
         assert_eq!(frame.fin, true);
         assert_eq!(frame.mask_key, [0; 4]);
-        assert_eq!(frame.opcode, Opcode::Continutation);
+        assert_eq!(frame.opcode, Opcode::Continuation);
         assert_eq!(frame.payload_len, 1);
         assert_eq!(frame.app_data[0], b'a');
     }
@@ -327,5 +347,25 @@ mod tests {
         for &c in &buf[8..8+128] {
             assert_eq!(c, b'X');
         }
+    }
+
+    #[test]
+    fn decode_two_frames() {
+        let mut buf = BytesMut::new();
+        let mut codec = FramesCodec::new();
+        buf.put_u8(0b0000_0001);
+        buf.put_u8(0b0000_0001);
+        buf.put_u8(b'a');
+        buf.put_u8(0b1000_0000);
+        buf.put_u8(0b0000_0001);
+        buf.put_u8(b'b');
+        let frame1 = codec.decode(&mut buf).unwrap().unwrap();
+        let frame2 = codec.decode(&mut buf).unwrap().unwrap();
+        assert_eq!(frame1.fin, false);
+        assert_eq!(frame1.is_continuation(), false);
+        assert_eq!(frame1.is_control(), false);
+        assert_eq!(frame2.fin, true);
+        assert_eq!(frame2.is_continuation(), true);
+        assert_eq!(frame2.is_control(), false);
     }
 }
