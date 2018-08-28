@@ -41,21 +41,18 @@ fn echo_server(stream: TcpStream) {
             let (writer, reader) = codec.split();
 
             reader
-                .map_err(|e| Error::from(e))
+                .map_err(Error::from)
                 .fold(writer.wait(), |mut writer, message| {
                     println!("{:?}", message);
                     match message {
                         Message::Text(bytes) => {
-                            if let Err(e) = writer.send(Message::Text(bytes)) {
-                                return Err(Error::from(e))
-                            }
-                            if let Err(e) = writer.flush() {
-                                return Err(Error::from(e))
-                            }
+                            writer.send(Message::Text(bytes))?;
+                            writer.flush()?;
                         }
                         Message::Binary(_payload) => {
-                            if let Err(e) = writer.send(Message::Text(BytesMut::from("<binary>"))) {
-                                return Err(Error::from(e))
+                            let r = writer.send(Message::Text(BytesMut::from("<binary>")));
+                            if let Err(e) = r {
+                                return Err(e)
                             }
                         }
                         Message::Control(opcode, _payload) => {
