@@ -6,7 +6,8 @@
 //! This module provides several types and enums to work with
 //! WebSocket frames, and implements frame encoding and decoding.
 //!
-//! The authoritive figure for WebSocket framing protocol is attached here for reference.
+//! The authoritive figure for WebSocket framing protocol is attached
+//! here for reference.
 //!
 //! ```text
 //!  0                   1                   2                   3   
@@ -31,6 +32,7 @@
 //!
 //! A few things to note:
 //! 1. Extension data is not supported.
+//! 2. Fragmentation is not supported.
 
 use std::u16;
 use std::io::Error;
