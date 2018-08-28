@@ -6,5 +6,7 @@ rust:
 cache: cargo
 env:
   - TEST_DIR=websocketd
+  - TEST_DIR=l
+  - TEST_DIR=fa
 script:
   - cd $TEST_DIR && cargo build --verbose --all && cargo test --verbose --all
