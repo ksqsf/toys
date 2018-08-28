@@ -291,8 +291,7 @@ mod tests {
         assert_eq!(frame.mask_key, mask_key);
         assert_eq!(frame.opcode, Opcode::Text);
         assert_eq!(frame.payload_len, 65538);
-        assert_eq!(&frame.app_data[0..3], b"aaa");
-        assert_eq!(frame.app_data[65537], b'a');
+        assert_eq!(&frame.app_data[0..3], &[97, 96, 99]);
     }
 
     #[test]
