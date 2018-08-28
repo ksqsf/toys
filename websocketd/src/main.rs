@@ -1,3 +1,11 @@
+//! websocketd is a work-in-progress server implementation of the
+//! WebSocket protocol as defined in RFC 6455, which implements a
+//! reasonable subset of WebSocket. A full implementation is not
+//! planned but possible.
+//!
+//! Details of websocketd and informal descriptions of the WebSocket
+//! protocol are documented in the module-level documentation.
+
 extern crate bytes;
 extern crate tokio;
 extern crate futures;
@@ -44,20 +52,23 @@ fn echo_server(stream: TcpStream) {
                 .map_err(Error::from)
                 .fold(writer.wait(), |mut writer, message| {
                     println!("{:?}", message);
-                    match message {
+                    let reply = match message {
                         Message::Text(bytes) => {
-                            writer.send(Message::Text(bytes))?;
-                            writer.flush()?;
+                            Message::Text(bytes)
                         }
                         Message::Binary(_payload) => {
-                            let r = writer.send(Message::Text(BytesMut::from("<binary>")));
-                            if let Err(e) = r {
-                                return Err(e)
-                            }
+                            Message::Text(BytesMut::from("<binary>"))
                         }
-                        Message::Control(opcode, _payload) => {
-                            println!("Control frame with opcode={}", opcode as u8)
+                        Message::Close(_payload) => {
+                            Message::Close(BytesMut::new())
                         }
+                        _ => {
+                            Message::Text(BytesMut::from("ping or pong"))
+                        }
+                    };
+                    writer.send(reply)?;
+                    if let Err(e) = writer.flush() {
+                        return Err(e)
                     }
                     Ok(writer)
                 })
