@@ -50,7 +50,7 @@ fn echo_server(stream: TcpStream) {
 
             reader
                 .map_err(Error::from)
-                .fold(writer.wait(), |mut writer, message| {
+                .fold(writer, |writer, message| {
                     println!("{:?}", message);
                     let reply = match message {
                         Message::Text(bytes) => {
@@ -62,15 +62,15 @@ fn echo_server(stream: TcpStream) {
                         Message::Close(_payload) => {
                             Message::Close(BytesMut::new())
                         }
+                        Message::Ping(_payload) => {
+                            Message::Pong(BytesMut::new())
+                        }
                         _ => {
                             Message::Text(BytesMut::from("ping or pong"))
                         }
                     };
-                    writer.send(reply)?;
-                    if let Err(e) = writer.flush() {
-                        return Err(e)
-                    }
-                    Ok(writer)
+                    writer.send(reply)
+                        .and_then(Sink::flush)
                 })
                 .map(|_| ())
                 .map_err(|e| println!("Messages: {:?}", e))

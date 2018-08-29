@@ -32,6 +32,10 @@
 //!
 //! A few things to note:
 //! 1. Extension data is not supported.
+//!
+//! ## Behaviors
+//! 1. Frames sent from client MUST be masked or shutdown
+//! 2. Frames sent from server MUST NOT be masked or shutdown
 
 use std::u16;
 use std::io::Error;
