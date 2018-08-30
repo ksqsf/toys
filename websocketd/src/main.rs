@@ -23,11 +23,12 @@ pub mod frames;
 pub mod messages;
 
 use failure::Error;
+use futures::future::Either;
 use tokio::prelude::*;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::codec::Decoder;
 use bytes::BytesMut;
-use messages::Message;
+use messages::{Message, EncodeError};
 
 fn main() -> Result<(), Error> {
     let local_addr = "127.0.0.1:54321".parse()?;
@@ -56,26 +57,55 @@ fn echo_server(stream: TcpStream) {
                         Message::Text(bytes) => {
                             Message::Text(bytes)
                         }
-                        Message::Binary(_payload) => {
+                        Message::Binary(_) => {
                             Message::Text(BytesMut::from("<binary>"))
                         }
-                        Message::Close(_payload) => {
+                        Message::Close(_) => {
                             Message::Close(BytesMut::new())
                         }
                         Message::Ping(payload) => {
                             // MUST have the same payload
                             Message::Pong(payload)
                         }
-                        _ => {
+                        Message::Pong(_) => {
                             Message::Text(BytesMut::from("pong"))
                         }
                     };
-                    writer.send(reply)
-                        .and_then(Sink::flush)
+
+                    // Cleanly close WebSocket connection
+                    if let Message::Close(_) = reply {
+                        Either::B(
+                            writer.send(reply)
+                                .and_then(Sink::flush)
+                                .then(|_| Err(EchoError::Closed))
+                        )
+                    } else {
+                        Either::A(
+                            writer.send(reply)
+                                .and_then(Sink::flush)
+                                .map(|w| { println!("send ok"); w })
+                                .map_err(EchoError::from)
+                        )
+                    }
                 })
                 .map(|_| ())
-                .map_err(|e| println!("Messages: {:?}", e))
+                .map_err(|e| println!("During message loop: {}", e))
         });
 
     tokio::spawn(conn);
+}
+
+#[derive(Debug, Fail)]
+enum EchoError {
+    #[fail(display = "Connection closed cleanly")]
+    Closed,
+
+    #[fail(display = "Encode error: {}", _0)]
+    EncodeError(EncodeError)
+}
+
+impl From<EncodeError> for EchoError {
+    fn from(e: EncodeError) -> EchoError {
+        EchoError::EncodeError(e)
+    }
 }
