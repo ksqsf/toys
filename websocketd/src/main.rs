@@ -62,11 +62,12 @@ fn echo_server(stream: TcpStream) {
                         Message::Close(_payload) => {
                             Message::Close(BytesMut::new())
                         }
-                        Message::Ping(_payload) => {
-                            Message::Pong(BytesMut::new())
+                        Message::Ping(payload) => {
+                            // MUST have the same payload
+                            Message::Pong(payload)
                         }
                         _ => {
-                            Message::Text(BytesMut::from("ping or pong"))
+                            Message::Text(BytesMut::from("pong"))
                         }
                     };
                     writer.send(reply)
