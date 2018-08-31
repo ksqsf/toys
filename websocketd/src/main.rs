@@ -80,7 +80,7 @@ fn pipe_server(stream: TcpStream, args: &Vec<String>) -> Result<(), io::Error> {
     let conn = handshake::handshake(stream)
         .and_then(|cloneable_stream| Ok(cloneable_stream.into_inner()))
         .and_then(|stream| {
-            let codec = streams::StreamingCodec::new().framed(stream);
+            let codec = streams::StreamingCodec::new(true).framed(stream);
             let (netout, netin) = codec.split();
 
             let from_ws_to_child = netin

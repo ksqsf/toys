@@ -27,6 +27,8 @@ pub enum Chunk {
 }
 
 pub struct StreamingCodec {
+    text: bool,
+
     opcode: Opcode,
     payload_len: usize,
     mask: Option<[u8; 4]>,
@@ -40,8 +42,12 @@ pub struct StreamingCodec {
 }
 
 impl StreamingCodec {
-    pub fn new() -> Self {
+    /// `text` controls whether data shall be interpreted as UTF-8
+    /// text.  If false, all chunks will be encoded as Binary frames
+    /// by the encoder, which is preferred.
+    pub fn new(text: bool) -> Self {
         StreamingCodec {
+            text,
             opcode: Opcode::Continuation,
             payload_len: 0,
             mask: None,
@@ -154,16 +160,7 @@ impl Encoder for StreamingCodec {
     type Error = EncodeError;
 
     fn encode(&mut self, chunk: Chunk, sink: &mut BytesMut) -> Result<(), EncodeError> {
-        self.frames_codec.encode(chunk.into(), sink)
-    }
-}
-
-impl From<Chunk> for Frame {
-    /// Convert a Chunk to a Frame.  Note that Data chunks are
-    /// converted to binary frames, which is because a Text frame must
-    /// contain only valid UTF-8 text, which is not the case here.
-    fn from(chunk: Chunk) -> Frame {
-        match chunk {
+        let frame = match chunk {
             Chunk::Close(b) => Frame {
                 fin: true,
                 opcode: Opcode::Close,
@@ -187,12 +184,14 @@ impl From<Chunk> for Frame {
             },
             Chunk::Data(b) => Frame {
                 fin: true,
-                opcode: Opcode::Binary,
+                opcode: if self.text {Opcode::Text} else {Opcode::Binary},
                 payload_len: b.len() as u64,
                 app_data: b,
                 ..Frame::default()
             }
-        }
+        };
+
+        self.frames_codec.encode(frame, sink)
     }
 }
 
