@@ -29,7 +29,8 @@ use tokio::prelude::*;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::codec::Decoder;
 use bytes::BytesMut;
-use messages::{Message, EncodeError};
+// use messages::{Message, EncodeError};
+use streams::{Chunk, EncodeError};
 
 fn main() -> Result<(), Error> {
     let local_addr = "127.0.0.1:54321".parse()?;
@@ -47,7 +48,7 @@ fn echo_server(stream: TcpStream) {
     let conn = handshake::handshake(stream)
         .and_then(|cloneable_stream| Ok(cloneable_stream.into_inner()))
         .and_then(|stream| {
-            let codec = messages::MessagesCodec::new().framed(stream);
+            let codec = streams::StreamingCodec::new().framed(stream);
             let (writer, reader) = codec.split();
 
             reader
@@ -60,38 +61,26 @@ fn echo_server(stream: TcpStream) {
     tokio::spawn(conn);
 }
 
-/// Process a message, resolving to the sink itself.
+/// Process a chunk, resolving to the sink itself.
 fn process_message<O>(
-    writer: O,
-    message: Message
+    sink: O,
+    chunk: Chunk
 ) -> impl Future<Item = O, Error = EchoError>
 where
-    O: Sink<SinkItem = Message, SinkError = EncodeError>
+    O: Sink<SinkItem = Chunk, SinkError = EncodeError>
 {
-    println!("{:?}", message);
-    let reply = match message {
-        Message::Text(bytes) => {
-            Message::Text(bytes)
-        }
-        Message::Binary(_) => {
-            Message::Text(BytesMut::from("<binary>"))
-        }
-        Message::Close(_) => {
-            Message::Close(BytesMut::new())
-        }
-        Message::Ping(payload) => {
-            // MUST have the same payload
-            Message::Pong(payload)
-        }
-        Message::Pong(_) => {
-            Message::Text(BytesMut::from("pong"))
-        }
+    println!("{:?}", chunk);
+    let reply = match chunk {
+        Chunk::Data(bytes) => Chunk::Data(bytes),
+        Chunk::Close(bytes) => Chunk::Close(bytes),
+        Chunk::Ping(bytes) => Chunk::Pong(bytes),
+        Chunk::Pong(_) => Chunk::Data(BytesMut::from("pong"))
     };
 
-    if let Message::Close(_) = reply {
+    if let Chunk::Close(_) = reply {
         // Cleanly close WebSocket connection
         Either::B(
-            writer.send(reply)
+            sink.send(reply)
                 .and_then(Sink::flush)
                 .then(|res| {
                     match res {
@@ -102,7 +91,7 @@ where
         )
     } else {
         Either::A(
-            writer.send(reply)
+            sink.send(reply)
                 .and_then(Sink::flush)
                 .map(|w| { println!("send ok"); w })
                 .map_err(EchoError::from)

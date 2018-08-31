@@ -10,11 +10,13 @@
 
 use std::io;
 use bytes::BytesMut;
-use tokio::codec::Decoder;
+use tokio::codec::{Decoder, Encoder};
 
-pub use frames::{self, Opcode, FramesCodec};
+pub use frames::{self, Opcode, Frame, FramesCodec};
+pub use frames::EncodeError;
 
 /// Represents a chunk of data in stream.
+#[derive(Debug, Clone)]
 pub enum Chunk {
     Close(BytesMut),
     Ping(BytesMut),
@@ -143,6 +145,53 @@ impl Decoder for StreamingCodec {
             }
 
             src.advance(header_len);
+        }
+    }
+}
+
+impl Encoder for StreamingCodec {
+    type Item = Chunk;
+    type Error = EncodeError;
+
+    fn encode(&mut self, chunk: Chunk, sink: &mut BytesMut) -> Result<(), EncodeError> {
+        self.frames_codec.encode(chunk.into(), sink)
+    }
+}
+
+impl From<Chunk> for Frame {
+    /// Convert a Chunk to a Frame.  Note that Data chunks are
+    /// converted to binary frames, which is because a Text frame must
+    /// contain only valid UTF-8 text, which is not the case here.
+    fn from(chunk: Chunk) -> Frame {
+        match chunk {
+            Chunk::Close(b) => Frame {
+                fin: true,
+                opcode: Opcode::Close,
+                payload_len: b.len() as u64,
+                app_data: b,
+                ..Frame::default()
+            },
+            Chunk::Ping(b) => Frame {
+                fin: true,
+                opcode: Opcode::Ping,
+                payload_len: b.len() as u64,
+                app_data: b,
+                ..Frame::default()
+            },
+            Chunk::Pong(b) => Frame {
+                fin: true,
+                opcode: Opcode::Pong,
+                payload_len: b.len() as u64,
+                app_data: b,
+                ..Frame::default()
+            },
+            Chunk::Data(b) => Frame {
+                fin: true,
+                opcode: Opcode::Binary,
+                payload_len: b.len() as u64,
+                app_data: b,
+                ..Frame::default()
+            }
         }
     }
 }
