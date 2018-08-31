@@ -28,13 +28,11 @@ use std::io;
 use std::env;
 use std::process::{Command, Stdio};
 use failure::Error;
-use futures::future::Either;
 use tokio::prelude::*;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::codec::Decoder;
 use tokio::codec::{BytesCodec, FramedRead};
 use tokio_process::CommandExt;
-use bytes::BytesMut;
 // use messages::{Message, EncodeError};
 use streams::{Chunk, EncodeError};
 
@@ -121,48 +119,10 @@ fn pipe_server(stream: TcpStream, args: &Vec<String>) -> Result<(), io::Error> {
     Ok(())
 }
 
-/// Process a chunk, resolving to the sink itself.
-fn process_message<SinkT>(
-    sink: SinkT,
-    chunk: Chunk
-) -> impl Future<Item = SinkT, Error = ServerError>
-where
-    SinkT: Sink<SinkItem = Chunk, SinkError = EncodeError>
-{
-    println!("{:?}", chunk);
-    let reply = match chunk {
-        Chunk::Data(bytes) => Chunk::Data(bytes),
-        Chunk::Close(bytes) => Chunk::Close(bytes),
-        Chunk::Ping(bytes) => Chunk::Pong(bytes),
-        Chunk::Pong(_) => Chunk::Data(BytesMut::from("pong"))
-    };
-
-    if let Chunk::Close(_) = reply {
-        // Cleanly close WebSocket connection
-        Either::B(
-            sink.send(reply)
-                .and_then(Sink::flush)
-                .then(|res| {
-                    match res {
-                        Ok(_) => Err(ServerError::Closed),
-                        Err(e) => Err(ServerError::from(e)),
-                    }
-                })
-        )
-    } else {
-        Either::A(
-            sink.send(reply)
-                .and_then(Sink::flush)
-                .map(|w| { println!("send ok"); w })
-                .map_err(ServerError::from)
-        )
-    }
-}
-
 #[derive(Debug, Fail)]
 enum ServerError {
     #[fail(display = "Connection closed cleanly")]
-    Closed,
+    _Closed,
 
     #[fail(display = "Encode error: {}", _0)]
     EncodeError(EncodeError)
