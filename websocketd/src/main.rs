@@ -21,6 +21,7 @@ pub mod tcp_stream;
 pub mod handshake;
 pub mod frames;
 pub mod messages;
+pub mod streams;
 
 use failure::Error;
 use futures::future::Either;

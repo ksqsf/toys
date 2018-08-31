@@ -58,12 +58,24 @@ pub enum Opcode {
 }
 
 impl Opcode {
-    fn is_continuation(self) -> bool {
+    pub fn is_continuation(self) -> bool {
         self == Opcode::Continuation
     }
 
-    fn is_control(self) -> bool {
+    pub fn is_control(self) -> bool {
         self as u8 >= 8
+    }
+
+    pub fn try_from_u8(n: u8) -> Option<Opcode> {
+        match n {
+            0 => Some(Opcode::Continuation),
+            1 => Some(Opcode::Text),
+            2 => Some(Opcode::Binary),
+            8 => Some(Opcode::Close),
+            9 => Some(Opcode::Ping),
+            10 => Some(Opcode::Pong),
+            _ => None
+        }
     }
 }
 
@@ -211,14 +223,9 @@ impl FramesCodec {
             rsv1: ((src[0]  >> 6) & 1) == 1,
             rsv2: ((src[0]  >> 5) & 1) == 1,
             rsv3: ((src[0]  >> 4) & 1) == 1,
-            opcode: match src[0] & 0b1111 {
-                0 => Opcode::Continuation,
-                1 => Opcode::Text,
-                2 => Opcode::Binary,
-                8 => Opcode::Close,
-                9 => Opcode::Ping,
-                10 => Opcode::Pong,
-                _ => return Err(DecodeError::InvalidOpcodeError(src[0] & 0b1111))
+            opcode: match Opcode::try_from_u8(src[0] & 0b1111) {
+                Some(o) => o,
+                None => return Err(DecodeError::InvalidOpcodeError(src[0] & 0b1111))
             },
             mask: self.has_mask,
             payload_len,
