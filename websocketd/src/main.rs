@@ -17,7 +17,7 @@ extern crate failure;
 #[macro_use]
 extern crate failure_derive;
 
-pub mod stream;
+pub mod tcp_stream;
 pub mod handshake;
 pub mod frames;
 pub mod messages;

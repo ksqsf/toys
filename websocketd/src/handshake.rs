@@ -41,7 +41,7 @@ use tokio::{
 };
 use sha1::Sha1;
 use base64;
-use stream::CloneableTcpStream;
+use tcp_stream::CloneableTcpStream;
 
 /// Create a future which tries to handshake with `TcpStream` and, if
 /// successful, evaluates to the stream itself.
