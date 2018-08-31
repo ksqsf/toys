@@ -8,6 +8,7 @@
 
 extern crate bytes;
 extern crate tokio;
+extern crate tokio_process;
 extern crate futures;
 extern crate sha1;
 extern crate base64;
@@ -23,11 +24,16 @@ pub mod frames;
 pub mod messages;
 pub mod streams;
 
+use std::io;
+use std::env;
+use std::process::{Command, Stdio};
 use failure::Error;
 use futures::future::Either;
 use tokio::prelude::*;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::codec::Decoder;
+use tokio::codec::{BytesCodec, FramedRead};
+use tokio_process::CommandExt;
 use bytes::BytesMut;
 // use messages::{Message, EncodeError};
 use streams::{Chunk, EncodeError};
@@ -35,39 +41,93 @@ use streams::{Chunk, EncodeError};
 fn main() -> Result<(), Error> {
     let local_addr = "127.0.0.1:54321".parse()?;
     let listener = TcpListener::bind(&local_addr)?;
-    let server = listener.incoming().for_each(|stream| {
+
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        println!("Please provide a command");
+        return Ok(())
+    }
+
+    let server = listener.incoming().for_each(move |stream| {
         println!("{:?}", stream);
-        echo_server(stream);
+        if let Err(e) = pipe_server(stream, &args) {
+            println!("Error happened when starting pipe service for client: {}", e);
+        }
         Ok(())
     }).map_err(|e| println!("Error: {:?}", e));
+
     tokio::run(server);
     Ok(())
 }
 
-fn echo_server(stream: TcpStream) {
+fn pipe_server(stream: TcpStream, args: &Vec<String>) -> Result<(), io::Error> {
+    debug_assert!(args.len() >= 2);
+
+    let mut child = Command::new(&args[1])
+        .args(&args[2..])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn_async()?;
+
+    let childin = child.stdin().take().ok_or(io::Error::new(
+        io::ErrorKind::BrokenPipe,
+        "Cannot take child stdin"
+    ))?;
+    let childout = child.stdout().take().ok_or(io::Error::new(
+        io::ErrorKind::BrokenPipe,
+        "Cannot take child stdout"
+    ))?;
+    child.forget();
+
     let conn = handshake::handshake(stream)
         .and_then(|cloneable_stream| Ok(cloneable_stream.into_inner()))
         .and_then(|stream| {
             let codec = streams::StreamingCodec::new().framed(stream);
-            let (writer, reader) = codec.split();
+            let (netout, netin) = codec.split();
 
-            reader
-                .map_err(Error::from)
-                .fold(writer, process_message)
-                .map(|_| ())
-                .map_err(|e| println!("During message loop: {}", e))
+            let from_ws_to_child = netin
+                .fold(childin, |mut childin, chunk| {
+                    println!("from ws: {:?}", chunk);
+                    match chunk {
+                        Chunk::Data(data) => {
+                            if let Err(e) = childin.poll_write(&data) {
+                                return Err(e)
+                            };
+                            childin.poll_flush()?;
+                        }
+                        _ => println!("Warning: Other types of chunks ignored")
+                    };
+                    Ok(childin)
+                })
+                .map(|_| println!("Dropping from_ws_to_child"))
+                .map_err(|e| println!("From WS to child: {}", e));
+
+            let from_child_to_ws = FramedRead::new(childout, BytesCodec::new())
+                .map_err(EncodeError::from)
+                .fold(netout, |netout, bytes| {
+                    println!("from child: {:?}", bytes);
+                    netout.send(Chunk::Data(bytes))
+                })
+                .map(|_| println!("Dropping from_child_to_ws"))
+                .map_err(|e| println!("From child to WS: {}", e));
+
+            tokio::spawn(from_ws_to_child);
+            tokio::spawn(from_child_to_ws);
+
+            Ok(())
         });
 
     tokio::spawn(conn);
+    Ok(())
 }
 
 /// Process a chunk, resolving to the sink itself.
-fn process_message<O>(
-    sink: O,
+fn process_message<SinkT>(
+    sink: SinkT,
     chunk: Chunk
-) -> impl Future<Item = O, Error = EchoError>
+) -> impl Future<Item = SinkT, Error = ServerError>
 where
-    O: Sink<SinkItem = Chunk, SinkError = EncodeError>
+    SinkT: Sink<SinkItem = Chunk, SinkError = EncodeError>
 {
     println!("{:?}", chunk);
     let reply = match chunk {
@@ -84,8 +144,8 @@ where
                 .and_then(Sink::flush)
                 .then(|res| {
                     match res {
-                        Ok(_) => Err(EchoError::Closed),
-                        Err(e) => Err(EchoError::from(e)),
+                        Ok(_) => Err(ServerError::Closed),
+                        Err(e) => Err(ServerError::from(e)),
                     }
                 })
         )
@@ -94,13 +154,13 @@ where
             sink.send(reply)
                 .and_then(Sink::flush)
                 .map(|w| { println!("send ok"); w })
-                .map_err(EchoError::from)
+                .map_err(ServerError::from)
         )
     }
 }
 
 #[derive(Debug, Fail)]
-enum EchoError {
+enum ServerError {
     #[fail(display = "Connection closed cleanly")]
     Closed,
 
@@ -108,8 +168,8 @@ enum EchoError {
     EncodeError(EncodeError)
 }
 
-impl From<EncodeError> for EchoError {
-    fn from(e: EncodeError) -> EchoError {
-        EchoError::EncodeError(e)
+impl From<EncodeError> for ServerError {
+    fn from(e: EncodeError) -> ServerError {
+        ServerError::EncodeError(e)
     }
 }
