@@ -51,53 +51,62 @@ fn echo_server(stream: TcpStream) {
 
             reader
                 .map_err(Error::from)
-                .fold(writer, |writer, message| {
-                    println!("{:?}", message);
-                    let reply = match message {
-                        Message::Text(bytes) => {
-                            Message::Text(bytes)
-                        }
-                        Message::Binary(_) => {
-                            Message::Text(BytesMut::from("<binary>"))
-                        }
-                        Message::Close(_) => {
-                            Message::Close(BytesMut::new())
-                        }
-                        Message::Ping(payload) => {
-                            // MUST have the same payload
-                            Message::Pong(payload)
-                        }
-                        Message::Pong(_) => {
-                            Message::Text(BytesMut::from("pong"))
-                        }
-                    };
-
-                    if let Message::Close(_) = reply {
-                        // Cleanly close WebSocket connection
-                        Either::B(
-                            writer.send(reply)
-                                .and_then(Sink::flush)
-                                .then(|res| {
-                                    match res {
-                                        Ok(_) => Err(EchoError::Closed),
-                                        Err(e) => Err(EchoError::from(e)),
-                                    }
-                                })
-                        )
-                    } else {
-                        Either::A(
-                            writer.send(reply)
-                                .and_then(Sink::flush)
-                                .map(|w| { println!("send ok"); w })
-                                .map_err(EchoError::from)
-                        )
-                    }
-                })
+                .fold(writer, process_message)
                 .map(|_| ())
                 .map_err(|e| println!("During message loop: {}", e))
         });
 
     tokio::spawn(conn);
+}
+
+/// Process a message, resolving to the sink itself.
+fn process_message<O>(
+    writer: O,
+    message: Message
+) -> impl Future<Item = O, Error = EchoError>
+where
+    O: Sink<SinkItem = Message, SinkError = EncodeError>
+{
+    println!("{:?}", message);
+    let reply = match message {
+        Message::Text(bytes) => {
+            Message::Text(bytes)
+        }
+        Message::Binary(_) => {
+            Message::Text(BytesMut::from("<binary>"))
+        }
+        Message::Close(_) => {
+            Message::Close(BytesMut::new())
+        }
+        Message::Ping(payload) => {
+            // MUST have the same payload
+            Message::Pong(payload)
+        }
+        Message::Pong(_) => {
+            Message::Text(BytesMut::from("pong"))
+        }
+    };
+
+    if let Message::Close(_) = reply {
+        // Cleanly close WebSocket connection
+        Either::B(
+            writer.send(reply)
+                .and_then(Sink::flush)
+                .then(|res| {
+                    match res {
+                        Ok(_) => Err(EchoError::Closed),
+                        Err(e) => Err(EchoError::from(e)),
+                    }
+                })
+        )
+    } else {
+        Either::A(
+            writer.send(reply)
+                .and_then(Sink::flush)
+                .map(|w| { println!("send ok"); w })
+                .map_err(EchoError::from)
+        )
+    }
 }
 
 #[derive(Debug, Fail)]
