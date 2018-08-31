@@ -72,12 +72,17 @@ fn echo_server(stream: TcpStream) {
                         }
                     };
 
-                    // Cleanly close WebSocket connection
                     if let Message::Close(_) = reply {
+                        // Cleanly close WebSocket connection
                         Either::B(
                             writer.send(reply)
                                 .and_then(Sink::flush)
-                                .then(|_| Err(EchoError::Closed))
+                                .then(|res| {
+                                    match res {
+                                        Ok(_) => Err(EchoError::Closed),
+                                        Err(e) => Err(EchoError::from(e)),
+                                    }
+                                })
                         )
                     } else {
                         Either::A(
