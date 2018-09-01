@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn decode1() {
         let mut buf = BytesMut::new();
-        let mut codec = StreamingCodec::new();
+        let mut codec = StreamingCodec::new(false);
         buf.put_u8(0b1000_0001); // fin, text
         buf.put_u8(0b1000_0010); // masked, len=2
         buf.put_u8(0); // mask
