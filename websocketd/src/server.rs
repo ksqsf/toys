@@ -4,10 +4,11 @@
 
 use std::io;
 use std::process::{Command, Stdio};
+use futures::future::Either;
 use tokio;
 use tokio::prelude::*;
 use tokio::codec::Decoder;
-use tokio::codec::{BytesCodec, FramedRead};
+use tokio::codec::{BytesCodec, FramedRead, FramedWrite};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_process::CommandExt;
 
@@ -52,19 +53,15 @@ fn do_pipe(stream: TcpStream, args: &Vec<String>) -> Result<(), io::Error> {
             let (netout, netin) = codec.split();
 
             let from_ws_to_child = netin
-                .fold(childin, |mut childin, chunk| {
-                    println!("from ws: {:?}", chunk);
-                    match chunk {
-                        Chunk::Data(data) => {
-                            if let Err(e) = childin.poll_write(&data) {
-                                return Err(e)
-                            };
-                            childin.poll_flush()?;
-                        }
-                        _ => println!("Warning: Other types of chunks ignored")
-                    };
-                    Ok(childin)
-                })
+                 .fold(FramedWrite::new(childin, BytesCodec::new()),
+                      |childin, chunk| {
+                          println!("from ws: {:?}", chunk);
+                          match chunk {
+                              Chunk::Data(data) => Either::A(childin.send(data.freeze())),
+                              _ => Either::B(future::ok(childin))
+                          }
+                      }
+                )
                 .map(|_| println!("Dropping from_ws_to_child"))
                 .map_err(|e| println!("From WS to child: {}", e));
 

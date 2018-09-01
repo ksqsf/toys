@@ -36,9 +36,9 @@ fn main() -> Result<(), Error> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         println!("Please provide a command");
-        return Ok(())
+    } else {
+        tokio::run(server::server(listener, args));
     }
 
-    tokio::run(server::server(listener, args));
     Ok(())
 }
