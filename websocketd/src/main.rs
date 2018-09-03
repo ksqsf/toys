@@ -12,7 +12,10 @@ extern crate tokio_process;
 extern crate futures;
 extern crate sha1;
 extern crate base64;
+extern crate env_logger;
 
+#[macro_use]
+extern crate log;
 #[macro_use]
 extern crate failure;
 #[macro_use]
@@ -30,12 +33,14 @@ use failure::Error;
 use tokio::net::TcpListener;
 
 fn main() -> Result<(), Error> {
+    env_logger::init();
+
     let local_addr = "127.0.0.1:54321".parse()?;
     let listener = TcpListener::bind(&local_addr)?;
 
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        println!("Please provide a command");
+        eprintln!("Please provide a command");
     } else {
         tokio::run(server::server(listener, args));
     }

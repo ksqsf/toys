@@ -26,10 +26,10 @@ pub fn server(
 {
     listener.incoming().for_each(move |stream| {
         if let Err(e) = do_pipe(stream, &args) {
-            println!("Error happened when starting pipe service for client: {}", e)
+            error!("Error happened when starting pipe service for client: {}", e)
         }
         future::ok(())
-    }).map_err(|e| println!("Error processing clients: {}", e))
+    }).map_err(|e| error!("Error processing clients: {}", e))
 }
 
 fn do_pipe(stream: TcpStream, args: &Vec<String>) -> Result<(), io::Error> {
@@ -86,8 +86,8 @@ fn from_child_to_tx(
             tx.send(TxMessage::ChildOutput(out))
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
         })
-        .map(|_| println!("Dropping from_child_to_tx"))
-        .map_err(|e| println!("During from_child_to_tx: {}", e))
+        .map(|_| debug!("Dropping from_child_to_tx"))
+        .map_err(|e| error!("During from_child_to_tx: {}", e))
 }
 
 /// Copy Websocket input to child.
@@ -106,7 +106,7 @@ fn from_ws_to_child(
         .map_err(ServerError::DecodeError)
         .fold(FramedWrite::new(childin, BytesCodec::new()),
               move |childin, chunk| {
-                  println!("from ws: {:?}", chunk);
+                  debug!("from ws: {:?}", chunk);
                   match chunk {
                       Chunk::Data(data) => Either::A(
                           childin.send(data.freeze())
@@ -117,14 +117,20 @@ fn from_ws_to_child(
                           future::err(ServerError::Closed)
                       }),
                       _ => {
-                          println!("Warning: other types of frames ignored");
+                          debug!("Warning: other types of frames ignored");
                           Either::B(future::ok(childin))
                       }
                   }
               }
         )
-        .map(|_| println!("Dropping from_ws_to_child"))
-        .map_err(|e| println!("During from_ws_to_child: {}", e))
+        .map(|_| debug!("Dropping from_ws_to_child"))
+        .map_err(|e| {
+            if let ServerError::Closed = e {
+                debug!("Connection closed")
+            } else {
+                error!("During from_ws_to_child: {}", e)
+            }
+        })
 }
 
 /// Process tx messages.
@@ -141,17 +147,17 @@ fn from_tx_to_ws(
         .fold((child, netout), |(child, netout), msg| {
             match msg {
                 TxMessage::ChildOutput(data) => {
-                    println!("from child: {:?}", data);
+                    debug!("from child: {:?}", data);
                     netout.send(Chunk::Data(data))
                 }
                 TxMessage::Close(_) => {
-                    println!("closing");
+                    debug!("closing");
                     netout.send(Chunk::Close(BytesMut::from("")))
                 }
             }.map(|netout| (child, netout))
         })
-        .map(|_| println!("Dropping from_tx_to_ws"))
-        .map_err(|e| println!("During from_tx_to_ws: {}", e))
+        .map(|_| debug!("Dropping from_tx_to_ws"))
+        .map_err(|e| error!("During from_tx_to_ws: {}", e))
 }
 
 enum TxMessage {

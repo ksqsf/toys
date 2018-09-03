@@ -68,7 +68,7 @@ pub fn handshake(stream: TcpStream)
                 Some(first) => first,
                 None => return Either::A(future::err(format_err!("Client exit early")))
             };
-            println!("First line: {}", first);
+            debug!("First line: {}", first);
 
             // Check validity of the request and extract resource
             let resource = match extract_resource(&first) {
@@ -87,7 +87,7 @@ pub fn handshake(stream: TcpStream)
                 .map_err(Error::from)
                 .take_while(|line| Ok(line != ""))
                 .fold(builder, |builder, line| {
-                    println!("header = {}", line);
+                    debug!("header = {}", line);
                     let parts: Vec<&str> = line.split(": ").collect();
                     if parts.len() != 2 {
                         bail!("Invalid header")
@@ -103,7 +103,7 @@ pub fn handshake(stream: TcpStream)
                     Ok(builder)
                 })
                 .and_then(|req| {
-                    println!("Request = {:#?}", req);
+                    debug!("Request = {:#?}", req);
 
                     // TODO: various checks including Connection, Origin, Hostname
                     // For now, just let it go
@@ -119,7 +119,7 @@ pub fn handshake(stream: TcpStream)
                     m.update(b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
                     let sha1sum = m.digest().bytes();
                     let secret = base64::encode(&sha1sum);
-                    println!("secret={}", secret);
+                    debug!("secret={}", secret);
 
                     Ok(secret)
                 })
@@ -137,7 +137,7 @@ pub fn handshake(stream: TcpStream)
 
             Either::B(continuation)
         })
-        .map_err(|e| println!("During handshake: {:?}", e))
+        .map_err(|e| error!("During handshake: {:?}", e))
 }
 
 fn extract_resource(request: &str) -> Result<&str, Error> {
