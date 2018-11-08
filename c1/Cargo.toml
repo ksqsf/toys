@@ -1,0 +1,9 @@
+[package]
+name = "c1"
+version = "0.1.0"
+authors = ["_rika <i@ksqsf.moe>"]
+edition = "2018"
+
+[dependencies]
+pest = "2.0"
+pest_derive = "2.0"
