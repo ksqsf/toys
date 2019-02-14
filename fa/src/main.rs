@@ -140,12 +140,11 @@ fn main() -> std::io::Result<()> {
 
     let mut reader = BufReader::new(io::stdin());
     let mut buf = String::new();
-    loop {
+    while {
         buf.clear();
         reader.read_line(&mut buf)?;
-        if buf.len() == 0 {
-            break
-        }
+        buf.len() != 0
+    } {
         let s = &buf[0..buf.len()-1];
         println!("'{}' accepted? {}", s, dfa.check(s));
     }
