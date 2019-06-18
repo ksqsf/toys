@@ -1,0 +1,10 @@
+[package]
+name = "lf"
+version = "0.1.0"
+authors = ["_rika <i@ksqsf.moe>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+crossbeam = "0.7.1"

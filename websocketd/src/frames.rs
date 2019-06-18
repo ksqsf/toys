@@ -99,7 +99,7 @@ pub struct Frame {
     pub mask: bool,         // 1 bit
     pub payload_len: u64,   // 7 bits + 0|2|8 bytes
     pub mask_key: [u8; 4],  // 0|4 bytes
-    //_ext_data: (),          // x bytes
+    // _ext_data: (),          // x bytes
     pub app_data: BytesMut, // y bytes
 }
 

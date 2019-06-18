@@ -15,4 +15,5 @@ fn main() {
     let file = C1Parser::parse(Rule::file, &file).expect("unsuccessful parse")
         .next().unwrap();
     println!("{:#?}", file);
+    dbg!(file);
 }
