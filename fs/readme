@@ -1,0 +1,8 @@
+an experiment: use *-at functions to access the original contents of a
+mount point.
+
+it doesn't work at all under macos, which is absurd, because at least
+rockmore-git can achieve some functionality.
+
+is it because highlevel fuse interface or smtg else? I can't say for
+sure...
