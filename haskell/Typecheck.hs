@@ -1,4 +1,4 @@
-
+import Control.Monad.State
 import qualified Data.Map.Strict as Map
 
 data Type = Int | Bool | Func Type Type | Var Char deriving (Show, Eq)
@@ -47,3 +47,7 @@ ex4 = snd $ unify Map.empty (Func (Var 'a') (Func (Var 'b') (Var 'a'))) (Func (V
 
 -- wtf... bug!
 ex5 = unify Map.empty (Func (Var 'a') (Var 'a')) (Var 'a')
+
+-- at least let's do something sane...
+-- this naive typeck cannot even unify 'a with 'b, because they are not the same Char.
+-- consider using de Bruijn index.
