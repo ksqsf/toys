@@ -24,6 +24,10 @@ fact_cps n = do
        then k 0
        else return r
 
+data MyCont r a = Cont { runMyCont :: (a -> MyCont r a) -> (a -> MyCont r a) }
+
+
+
 print4 :: ContT r IO ()
 print4 = do
   (goto, n) <-
