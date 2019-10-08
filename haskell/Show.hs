@@ -65,6 +65,7 @@ data Person = Person { name :: String, age :: Int } deriving (Eq, Generic, Show0
 data Person' = P String Int deriving (Eq,Generic,Show0)
 data Nat = Zero | Succ Nat deriving (Eq, Generic,Show0)
 data Sum a b = L a | R b deriving (Eq, Generic,Show0)
+data List a = Mk [a] deriving (Generic, Show0)
 
 
 ex1 = show0 (L (Person "Song" 26) :: Sum Person Bool)
