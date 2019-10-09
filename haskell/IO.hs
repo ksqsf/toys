@@ -15,4 +15,7 @@ command1 = do
   (Nothing,Nothing,Nothing,d) <- createProcess (proc "ls" [])
   return ()
 
-
+test :: IO Int
+test = do
+  return 1
+  return 2
