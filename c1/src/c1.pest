@@ -1,8 +1,6 @@
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" | "//" ~ ANY ~ NEWLINE }
 
-
-
 ///
 /// lex
 ///
@@ -18,9 +16,8 @@ floatconst = @{
     | "." ~ digit_seq
 }
 digit_seq = _{
-    ('0'..'9')+
+      ('0'..'9')+
 }
-
 
 ///
 /// grammar
@@ -47,9 +44,8 @@ constdef = {
 }
 
 initializer_list = {
-    "{" ~ exp ~ ("," ~ exp)* ~ "}"
+      "{" ~ exp ~ ("," ~ exp)* ~ "}"
 }
-
 
 // Function & block
 funcdef = { "void" ~ identifier ~ "(" ~ ")" ~ block }
@@ -64,6 +60,7 @@ stmt = {
     | whilestmt
     | ";"
 }
+
 assignment = { lval ~ "=" ~ exp }
 funcall = { identifier ~ "(" ~ ")" }
 ifstmt = { "if" ~ "(" ~ cond ~ ")" ~ stmt ~ ("else" ~ stmt)? }
