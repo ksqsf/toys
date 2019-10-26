@@ -13,5 +13,3 @@ class Category a => Arrow a where
   arr :: (x -> y) -> a x y
   (>>>) :: a x z -> a z y -> a x y
   f >>> g = g . f
-
-
