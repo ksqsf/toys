@@ -1,0 +1,10 @@
+[package]
+name = "webbench"
+version = "0.1.0"
+authors = ["ksqsf"]
+
+[dependencies]
+clap = "2.31.2"
+crossbeam = "0.3.0"
+url = "1.7.0"
+http = "0.1.5"
