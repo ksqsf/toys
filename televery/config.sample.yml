@@ -1,0 +1,29 @@
+# Local listening address.
+#
+# Format: <IPv4/IPv6 address>:<port>
+listen_address: 127.0.0.1:12345
+
+# Your Telegram bot token.
+bot_token: 110201543:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw
+
+# Trusted users will all be asked on Telegram, and they all can
+# process a request.
+#
+# Suggestion: these usernames should all belong to you.  Not so only
+# when you absolutely trust other account owners.
+trusted_users:
+  - user1
+  - user2
+  - user3
+
+# Appname is a unique identity given to an app that possibly uses
+# two-factor verification.
+#
+# Only trusted apps can make a verification request.  Apps that are
+# not trusted will receive nothing but "DENY".
+#
+# Suggestion: use random strings to make them harder to predict.  You
+# can see appnames as some form of secret token.
+trusted_apps:
+  - myapp.123
+  - webshell2
