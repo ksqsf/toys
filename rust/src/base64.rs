@@ -129,7 +129,6 @@ pub fn encode(input: &[u8]) -> Vec<u8> {
 
 /// SIMD BASE64 encoding.
 pub fn encode_simd() {
-    
 }
 
 #[cfg(test)]

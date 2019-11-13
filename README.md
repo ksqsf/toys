@@ -8,3 +8,4 @@ Some toys. [![Build Status](https://travis-ci.com/ksqsf/toys.svg?branch=master)]
 * **l**: logic calculus
 * **qlearn**: Q-Learning
 * **websocketd**: a websocket server based on tokio in rust
+* **order** : order theory for computer scientists
