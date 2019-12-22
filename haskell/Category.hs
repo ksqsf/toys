@@ -28,4 +28,3 @@ r \\ (Sub Dict) = r
 
 trans :: (b :- c) -> (a :- b) -> (a :- c)
 trans f g = Sub $ (Dict \\ f) \\ g
-
