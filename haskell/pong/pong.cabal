@@ -1,0 +1,30 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 81f60c4353369cf7bed35b37b3b5327c106f4a1b8d15b7fd0c8630922072784d
+
+name:           pong
+version:        0.0.0
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+
+executable binary-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_pong
+  hs-source-dirs:
+      src
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
+  build-depends:
+      base
+    , containers
+    , gloss
+    , lens
+    , mtl
+    , random
+    , streams
+  default-language: Haskell2010

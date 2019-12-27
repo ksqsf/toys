@@ -7,10 +7,19 @@ import Control.Lens
 data Name = N
   { _firstName :: String
   , _familyName :: String
+  , _hasCircle :: Maybe Circle
   } deriving (Show, Eq)
 
-makeLenses ''Name
+data Circle = Circle
+  { _members :: [Name] }
+  deriving (Show, Eq)
 
-name = N "Song" "Zhang"
+$(makeLenses ''Name)
+$(makeLenses ''Circle)
 
+jack = N "Jack" "Ma" Nothing
+mike = N "Mike" "KKK" Nothing
+circle = Circle [jack, mike]
+zs = N "Song" "Zhang" (Just circle)
 
+friends = toListOf (hasCircle.traverse.members.traverse)
