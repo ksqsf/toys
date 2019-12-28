@@ -20,3 +20,5 @@ atom1 = Atom "C" (Point 1.0 2.0)
 atom2 = Atom "O" (Point 3.0 4.0)
 molecule = Molecule [atom1, atom2]
 
+traverse' :: (Traversable t, Applicative f) => (a -> f b) -> t a -> f (t b)
+traverse' f s = sequenceA (fmap f s)
