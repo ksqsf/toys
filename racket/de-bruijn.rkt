@@ -344,5 +344,4 @@
                     (abs (app 1 (app 0 0))))))
 ; (reduce (app Y I)) ;; Happy looping!
 
-(simplify '((S . (K . (S . I))) . ((S . (K . K)) . I)))
-(denote )
+; (simplify '((S . (K . (S . I))) . ((S . (K . K)) . I)))
