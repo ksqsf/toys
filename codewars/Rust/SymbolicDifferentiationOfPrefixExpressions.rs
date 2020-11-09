@@ -1,3 +1,5 @@
+//! https://www.codewars.com/kata/584daf7215ac503d5a0001ae
+
 use std::rc::Rc;
 use std::str;
 
