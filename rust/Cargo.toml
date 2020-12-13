@@ -4,9 +4,9 @@ version = "0.1.0"
 authors = ["ksqsf <i@ksqsf.moe>"]
 edition = "2018"
 
-[[bin]]
-name = "simd_base64_bench"
-path = "./bin/simd_base64_bench.rs"
+# [[bin]]
+# name = "simd_base64_bench"
+# path = "./bin/simd_base64_bench.rs"
 
 [dependencies]
 rand = "0.7"
