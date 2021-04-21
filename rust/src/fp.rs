@@ -34,7 +34,7 @@ impl<A> Functor for Option<A> {
     fn map<F: FnMut(A) -> B, B>(self, mut f: F) -> Option<B> {
         match self {
             Some(x) => Some(f(x)),
-            None => None
+            None => None,
         }
     }
 }
@@ -49,7 +49,7 @@ impl<A> Pointed for Option<A> {
     }
 }
 
-trait Applicative : Pointed {
+trait Applicative: Pointed {
     fn lift_a2<F, B, C>(self, b: Self::Wrapped<B>, f: F) -> Self::Wrapped<C>
     where
         F: FnMut(Self::Unwrapped, B) -> C;
@@ -58,7 +58,7 @@ trait Applicative : Pointed {
 impl<A> Applicative for Option<A> {
     fn lift_a2<F, B, C>(self, b: Self::Wrapped<B>, mut f: F) -> Self::Wrapped<C>
     where
-        F: FnMut(Self::Unwrapped, B) -> C
+        F: FnMut(Self::Unwrapped, B) -> C,
     {
         Some(f(self?, b?))
     }
@@ -92,9 +92,9 @@ enum Validation<A, E> {
     Err(E),
 }
 
-impl<A,E> Functor for Validation<A,E> {
+impl<A, E> Functor for Validation<A, E> {
     type Unwrapped = A;
-    type Wrapped<B> = Validation<B,E>;
+    type Wrapped<B> = Validation<B, E>;
 
     fn map<F: FnMut(A) -> B, B>(self, mut f: F) -> Self::Wrapped<B> {
         match self {
@@ -104,8 +104,8 @@ impl<A,E> Functor for Validation<A,E> {
     }
 }
 
-impl<A,E> Pointed for Validation<A,E> {
-    fn wrap<T>(t: T) -> Validation<T,E> {
+impl<A, E> Pointed for Validation<A, E> {
+    fn wrap<T>(t: T) -> Validation<T, E> {
         Validation::Ok(t)
     }
 }
@@ -113,7 +113,7 @@ impl<A,E> Pointed for Validation<A,E> {
 impl<A, E: Semigroup> Applicative for Validation<A, E> {
     fn lift_a2<F, B, C>(self, b: Self::Wrapped<B>, mut f: F) -> Self::Wrapped<C>
     where
-        F: FnMut(Self::Unwrapped, B) -> C
+        F: FnMut(Self::Unwrapped, B) -> C,
     {
         match (self, b) {
             (Validation::Ok(a), Validation::Ok(b)) => Validation::Ok(f(a, b)),
@@ -125,7 +125,7 @@ impl<A, E: Semigroup> Applicative for Validation<A, E> {
 }
 
 trait Monad: Applicative {
-    fn bind<B,F>(self, f: F) -> Self::Wrapped<B>
+    fn bind<B, F>(self, f: F) -> Self::Wrapped<B>
     where
         F: FnMut(Self::Unwrapped) -> Self::Wrapped<B>;
 }
@@ -133,7 +133,7 @@ trait Monad: Applicative {
 impl<A> Monad for Option<A> {
     fn bind<B, F>(self, f: F) -> Option<B>
     where
-        F: FnMut(A) -> Option<B>
+        F: FnMut(A) -> Option<B>,
     {
         self.and_then(f)
     }
@@ -147,7 +147,7 @@ impl<M: Functor> Functor for IdentityT<M> {
 
     fn map<F, B>(self, f: F) -> Self::Wrapped<B>
     where
-        F: FnMut(M::Unwrapped) -> B
+        F: FnMut(M::Unwrapped) -> B,
     {
         IdentityT(self.0.map(f))
     }
@@ -162,7 +162,7 @@ impl<M: Pointed> Pointed for IdentityT<M> {
 impl<M: Applicative> Applicative for IdentityT<M> {
     fn lift_a2<F, B, C>(self, b: Self::Wrapped<B>, f: F) -> Self::Wrapped<C>
     where
-        F: FnMut(Self::Unwrapped, B) -> C
+        F: FnMut(Self::Unwrapped, B) -> C,
     {
         IdentityT(self.0.lift_a2(b.0, f))
     }
@@ -171,7 +171,7 @@ impl<M: Applicative> Applicative for IdentityT<M> {
 impl<M: Monad> Monad for IdentityT<M> {
     fn bind<B, F>(self, mut f: F) -> Self::Wrapped<B>
     where
-        F: FnMut(Self::Unwrapped) -> Self::Wrapped<B>
+        F: FnMut(Self::Unwrapped) -> Self::Wrapped<B>,
     {
         IdentityT(self.0.bind(|x| f(x).0))
     }
@@ -189,4 +189,3 @@ impl<M: Monad> MonadTrans for IdentityT<M> {
         IdentityT(base)
     }
 }
-

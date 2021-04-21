@@ -8,5 +8,10 @@ edition = "2018"
 # name = "simd_base64_bench"
 # path = "./bin/simd_base64_bench.rs"
 
+[[bin]]
+name = "rayon"
+path = "./bin/rayon.rs"
+
 [dependencies]
 rand = "0.7"
+rayon = "1.5"
