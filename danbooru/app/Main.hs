@@ -2,11 +2,15 @@
 module Main where
 
 import           Control.Monad
+import           Control.Monad.Trans.Resource (runResourceT)
+import           Data.Conduit (runConduit, (.|))
+import           Network.HTTP.Conduit
 import           Network.HTTP.Simple
 import           Text.HTML.Scalpel
 import           Text.Regex
 import qualified Control.Monad.Parallel as Par
 import qualified Data.ByteString.Char8  as C
+import qualified Data.Conduit.Binary as CB
 
 getPageURLs :: Int -> IO [URL]
 getPageURLs page = do
@@ -26,10 +30,9 @@ getImageURL url = do
     Nothing  -> Left url
 
 downloadSave :: URL -> FilePath -> IO ()
-downloadSave url path = do
-  req  <- parseRequest url
-  resp <- httpBS req
-  C.writeFile path (getResponseBody resp)
+downloadSave url path = runResourceT $ do
+  req <- parseRequest url
+  runConduit $ httpSource req getResponseBody .| CB.sinkFile path
 
 main :: IO ()
 main = do
