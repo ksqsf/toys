@@ -7,11 +7,9 @@ import           Control.Scheduler
 import           Control.Exception
 import           Data.IORef
 import           Data.Conduit (runConduit, (.|))
-import           Network.HTTP.Conduit
 import           Network.HTTP.Simple
 import           Text.HTML.Scalpel
 import           Text.Regex
-import qualified Data.ByteString.Char8  as C
 import qualified Data.Conduit.Binary as CB
 
 getPageURLs :: Int -> IO [URL]
@@ -38,15 +36,14 @@ main = do
   let maxPage = 14
       nThreads = 25
   cnt <- newIORef 1
-  postURLs <- withScheduler (ParN nThreads) $ \scheduler -> do
-    forM [1..maxPage] (scheduleWork scheduler . retry 3 . getPageURLs)
   withScheduler_ (ParN nThreads) $ \scheduler -> do
-    forM (concat postURLs) $ \postURL -> scheduleWork scheduler $ do
-      imageURL <- getImageURL postURL
-      case imageURL of
-        Nothing -> putStrLn $ "!! 从页面抓取图片地址失败: " <> postURL
-        Just img -> do
-          scheduleWork scheduler $ do
+    forM_ [1..maxPage] $ \page -> scheduleWork scheduler $ do
+      postURLs <- retry 3 (getPageURLs page)
+      forM_ postURLs $ \postURL -> scheduleWork scheduler $ do
+        imageURL <- retry 3 (getImageURL postURL)
+        case imageURL of
+          Nothing -> putStrLn $ "!! 从页面抓取图片地址失败: " <> postURL
+          Just img -> scheduleWork scheduler $ do
             i <- atomicModifyIORef' cnt (\x -> (x+1, x))
             putStrLn $ "正在下载第 " <> show i <> " 张图片"
             retry 3 $ downloadSave img (show i <> ".jpg")
