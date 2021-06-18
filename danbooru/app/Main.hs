@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
+import           Control.Exception.Extra
 import           Control.Monad
+import           Control.Monad.Catch
 import           Control.Monad.Trans.Resource (runResourceT)
 import           Control.Scheduler
-import           Control.Exception
-import           Data.IORef
 import           Data.Conduit (runConduit, (.|))
+import           Data.IORef
 import           Network.HTTP.Simple
 import           Text.HTML.Scalpel
 import           Text.Regex
@@ -47,7 +48,3 @@ main = do
             i <- atomicModifyIORef' cnt (\x -> (x+1, x))
             putStrLn $ "正在下载第 " <> show i <> " 张图片"
             retry 3 $ downloadSave img (show i <> ".jpg")
-
-retry :: Int -> IO a -> IO a
-retry 0 ma = ma
-retry n ma = ma `catch` (\e -> putStrLn (show (e :: HttpException)) >> retry (n-1) ma)
