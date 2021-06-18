@@ -3,12 +3,13 @@ module Main where
 
 import           Control.Monad
 import           Control.Monad.Trans.Resource (runResourceT)
+import           Control.Scheduler
+import           Control.Exception
 import           Data.Conduit (runConduit, (.|))
 import           Network.HTTP.Conduit
 import           Network.HTTP.Simple
 import           Text.HTML.Scalpel
 import           Text.Regex
-import qualified Control.Monad.Parallel as Par
 import qualified Data.ByteString.Char8  as C
 import qualified Data.Conduit.Binary as CB
 
@@ -37,24 +38,22 @@ downloadSave url path = runResourceT $ do
 main :: IO ()
 main = do
   let maxPage = 14
-  postURLs <- foldMap getPageURLs [1..maxPage]
-  imageURLs <- mapMB 10 getImageURL postURLs
-  forMB 10 (zip [1..] imageURLs) $ \(i, img) -> do
-    case img of
-      Left url -> do
-        putStrLn $ "!! 从页面抓取图片地址失败: " <> url
-      Right img -> do
-        putStrLn $ "正在下载第 " <> show i <> " 张图片"
-        downloadSave img (show i <> ".jpg")
-  return ()
+      nThreads = 20
+  postURLs <- withScheduler (ParN nThreads) $ \scheduler -> do
+    forM [1..maxPage] (scheduleWork scheduler . retry 3 . getPageURLs)
+  imageURLs <- withScheduler (ParN nThreads) $ \scheduler -> do
+    forM (concat postURLs) (scheduleWork scheduler . retry 3 . getImageURL)
+  withScheduler_ (ParN nThreads) $ \scheduler -> do
+    forM (zip [1..] imageURLs) $ \(i, img) ->
+      case img of
+        Left url -> do
+          putStrLn $ "!! 从页面抓取图片地址失败: " <> url
+        Right img -> do
+          scheduleWork scheduler $ do
+            putStrLn $ "正在下载第 " <> show i <> " 张图片"
+            retry 3 (downloadSave img (show i <> ".jpg"))
 
--- Bounded parallelism.
-mapMB :: Par.MonadParallel m => Int -> (a -> m b) -> [a] -> m [b]
-mapMB n f [] = return []
-mapMB n f xs = do
-  cohort <- Par.mapM f (take n xs)
-  rest   <- mapMB n  f (drop n xs)
-  return (cohort ++ rest)
+retry :: Int -> IO a -> IO a
+retry 0 ma = ma
+retry n ma = ma `catch` (\e -> putStrLn (show (e :: HttpException)) >> retry (n-1) ma)
 
-forMB :: Par.MonadParallel m => Int -> [a] -> (a -> m b) -> m [b]
-forMB n = flip (mapMB n)

@@ -31,6 +31,6 @@ executable danbooru
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base ^>=4.15.0.0, bytestring, http-conduit, regex-compat, scalpel, monad-parallel, conduit-extra, resourcet, conduit
+    build-depends:    base >=4.14.0.0 && <5, bytestring, http-conduit, regex-compat, scalpel, conduit-extra, resourcet, conduit, scheduler
     hs-source-dirs:   app
     default-language: Haskell2010
