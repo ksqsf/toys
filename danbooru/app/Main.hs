@@ -5,6 +5,7 @@ import           Control.Monad
 import           Control.Monad.Trans.Resource (runResourceT)
 import           Control.Scheduler
 import           Control.Exception
+import           Data.IORef
 import           Data.Conduit (runConduit, (.|))
 import           Network.HTTP.Conduit
 import           Network.HTTP.Simple
@@ -22,13 +23,10 @@ getPageURLs page = do
                   return []
     Just hrefs -> return (map ("https://danbooru.donmai.us" <>) hrefs)
 
-getImageURL :: URL -> IO (Either URL URL)
+getImageURL :: URL -> IO (Maybe URL)
 getImageURL url = do
   putStrLn ("正在抓取页面: " <> url)
-  mImg <- scrapeURL url (chroot ("li" @: ["id" @= "post-info-size"]) (attr "href" "a"))
-  return $ case mImg of
-    Just img -> Right img
-    Nothing  -> Left url
+  scrapeURL url (chroot ("li" @: ["id" @= "post-info-size"]) (attr "href" "a"))
 
 downloadSave :: URL -> FilePath -> IO ()
 downloadSave url path = runResourceT $ do
@@ -38,22 +36,21 @@ downloadSave url path = runResourceT $ do
 main :: IO ()
 main = do
   let maxPage = 14
-      nThreads = 20
+      nThreads = 25
+  cnt <- newIORef 1
   postURLs <- withScheduler (ParN nThreads) $ \scheduler -> do
     forM [1..maxPage] (scheduleWork scheduler . retry 3 . getPageURLs)
-  imageURLs <- withScheduler (ParN nThreads) $ \scheduler -> do
-    forM (concat postURLs) (scheduleWork scheduler . retry 3 . getImageURL)
   withScheduler_ (ParN nThreads) $ \scheduler -> do
-    forM (zip [1..] imageURLs) $ \(i, img) ->
-      case img of
-        Left url -> do
-          putStrLn $ "!! 从页面抓取图片地址失败: " <> url
-        Right img -> do
+    forM (concat postURLs) $ \postURL -> scheduleWork scheduler $ do
+      imageURL <- getImageURL postURL
+      case imageURL of
+        Nothing -> putStrLn $ "!! 从页面抓取图片地址失败: " <> postURL
+        Just img -> do
           scheduleWork scheduler $ do
+            i <- atomicModifyIORef' cnt (\x -> (x+1, x))
             putStrLn $ "正在下载第 " <> show i <> " 张图片"
-            retry 3 (downloadSave img (show i <> ".jpg"))
+            retry 3 $ downloadSave img (show i <> ".jpg")
 
 retry :: Int -> IO a -> IO a
 retry 0 ma = ma
 retry n ma = ma `catch` (\e -> putStrLn (show (e :: HttpException)) >> retry (n-1) ma)
-
