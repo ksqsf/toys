@@ -11,6 +11,14 @@ import qualified Data.Vector.Storable as Vec
 import qualified Data.Vector.Storable.Mutable as MVec
 import           System.Environment
 import           System.IO
+import           Text.Printf
+
+{-
+Download the bad apple video: https://archive.org/details/TouhouBadApple
+but you can actually use any video file you like. the result won't be good though.
+
+NOTE: -O2 will considerably make the animation smoother!!
+-}
 
 main :: IO ()
 main = do
@@ -18,18 +26,19 @@ main = do
   initFFmpeg
   (nextFrame, cleanup) <- imageReaderTime (File (args!!(0)))
   startTime <- getCurrentTime
-  let go = nextFrame >>= \case
+  hSetBuffering stdout (BlockBuffering (Just 1024))
+  let go i = nextFrame >>= \case
         Nothing -> pure ()
         Just (frame, timestamp) -> do
+          printf "Frame %s at %.3f second\n" (show i) timestamp
           curTime <- getCurrentTime
           let elapsed = realToFrac $ diffUTCTime curTime startTime
-          print elapsed
           when (timestamp > elapsed) $ do
             threadDelay (round ((timestamp - elapsed) * 1_000_000))
           hPutStr stdout $ Vec.toList (textify frame)
           hFlush stdout
-          go
-  go
+          go (i+1)
+  go 1
   cleanup
 
 textify :: Image Pixel8 -> Vector Char
@@ -43,11 +52,16 @@ textify frame =
       block_h = img_h `div` h
       sumBlock y x = let idx dy = (y*block_h + dy) * img_w + x*block_w
                      in sum [ Vec.sum . Vec.map fromIntegral $ Vec.slice (idx i) block_w img_buf | i <- [0..block_h-1] ]
-      blockIsBlack  y x = sumBlock y x < (block_h * block_w * 255) `div` 2
+      blockChar y x =
+        let sum = sumBlock y x
+            full = block_h * block_w * 255
+        in if | sum < full `div` 3     -> '#'
+              | sum < full `div` 3 * 2 -> '*'
+              | otherwise              -> ' '
   in Vec.create $ do
     buf <- MVec.new (h * (w+1))
     forM [0..(h-1)] $ \y -> do
       forM [0..(w-1)] $ \x -> do
-        MVec.write buf (y*(w+1)+x) (if blockIsBlack y x then '#' else ' ')
+        MVec.write buf (y*(w+1)+x) (blockChar y x)
       MVec.write buf (y*(w+1)+w) '\n'
     return buf
