@@ -6,7 +6,7 @@ import           Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.Trans.Resource (runResourceT)
 import           Control.Scheduler
-import           Data.Conduit (runConduit, (.|))
+import           Conduit
 import           Data.IORef
 import           Network.HTTP.Simple
 import           Text.HTML.Scalpel
@@ -28,9 +28,9 @@ getImageURL url = do
   scrapeURL url (chroot ("li" @: ["id" @= "post-info-size"]) (attr "href" "a"))
 
 downloadSave :: URL -> FilePath -> IO ()
-downloadSave url path = runResourceT $ do
+downloadSave url path = runConduitRes $ do
   req <- parseRequest url
-  runConduit $ httpSource req getResponseBody .| CB.sinkFile path
+  httpSource req getResponseBody .| CB.sinkFile path
 
 main :: IO ()
 main = do
