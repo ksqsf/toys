@@ -30,7 +30,7 @@ main = do
   let go i = nextFrame >>= \case
         Nothing -> pure ()
         Just (frame, timestamp) -> do
-          printf "Frame %s at %.3f second\n" (show i) timestamp
+          printf "Frame %d at %.3f second\n" i timestamp
           curTime <- getCurrentTime
           let elapsed = realToFrac $ diffUTCTime curTime startTime
           when (timestamp > elapsed) $ do
@@ -38,7 +38,7 @@ main = do
           hPutStr stdout $ Vec.toList (textify frame)
           hFlush stdout
           go (i+1)
-  go 1
+  go (1 :: Int)
   cleanup
 
 textify :: Image Pixel8 -> Vector Char
