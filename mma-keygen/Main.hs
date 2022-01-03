@@ -4,14 +4,12 @@ module Main where
 import           Data.Function ((&))
 import           Control.Monad (when)
 import           Data.Bits
-import           Data.Bool (bool)
-import qualified Data.ByteString.Builder as BS
+import qualified Data.ByteString.Builder as Builder
 import           Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import           Data.Char (ord)
 import           Data.List (foldl')
-import           Data.Word (Word8)
 import           System.IO (hFlush, stdout)
 import           System.Random (randomRIO)
 
@@ -22,7 +20,7 @@ magicNumbers = [10690, 12251, 17649, 24816, 33360, 35944, 36412, 42041, 42635, 4
 -- System Modeler 12/13 magic numbers
 -- [4912, 4961, 22384, 24968, 30046, 31889, 42446, 43787, 48967, 61182, 62774]
 
-mathIdValid :: BS.ByteString -> Bool
+mathIdValid :: ByteString -> Bool
 mathIdValid mathID = BS.length mathID == 16 && all charOK (zip [0..] (BS.unpack mathID))
   where
     charOK :: (Int, Char) -> Bool
@@ -34,49 +32,46 @@ genActivationKey :: IO ByteString
 genActivationKey = BS.pack <$> sequenceA [r, r, r, r, pure '-', r, r, r, r, pure '-', r, r, r, r, r, r]
   where r = randomRIO ('0', '9')
 
-f1 :: Int -> Int -> Int -> Int
-f1 n byte c = foldl' f n [0..7]
-  where
-    f n i = let bit = (byte `shiftR` i) .&. 1 in
-      if bit + ((n - bit) .&. (complement 1)) == n
-      then (n - bit) `shiftR` 1
-      else ((c - bit) `xor` n) `shiftR` 1
-
 genPassword :: ByteString -> ByteString -> Int -> ByteString
-genPassword mathID activationKey init =
+genPassword mathID activationKey magic =
   let str = mathID <> "$1&" <> activationKey
-      hash = BS.foldl' (\hash c -> f1 hash (ord c) 0x105c3) init (BS.reverse str)
-      n1 = iterateN hash 0x105c3 0
-        & \n1 -> floor $ realToFrac ((n1 + 0x72fa) .&. 0xffff) * 99999.0 / 0xffff
-      n1s = stringify n1
-      temp = (read . BS.unpack $ n1s#(0,-3) <> takeLast 2 n1s <> n1s#(-3,-2))
-        & \temp -> (ceiling $ (realToFrac temp / 99999.0) * 0xffff)
-        & \temp -> f1 (f1 0 (temp .&. 0xff) 0x1064b) (temp `shiftR` 8) 0x1064b
-        & \temp -> BS.foldl' (\t c -> f1 t (ord c) 0x1064b) temp (BS.reverse str)
-      n2 = iterateN temp 0x1064b 0
-        & \n2 -> floor $ realToFrac (n2 .&. 0xffff) * 99999.0 / 0xffff
-      n2s = stringify n2
-  in LBS.toStrict . BS.toLazyByteString $
-       n2s!3 <> n1s!3 <> n1s!1 <> n1s!0 <> BS.char8 '-'
-    <> n2s!4 <> n1s!2 <> n2s!0 <> BS.char8 '-'
-    <> n2s!2 <> n1s!4 <> n2s!1 <> BS.byteString "::1"
+      hash = BS.foldl' (\hash c -> f hash (ord c) 0x105c3) magic (BS.reverse str)
+      n1s = iterateN hash 0x105c3 0 & (+ 0x72fa) & normalize & stringify
+      seed = (read . BS.unpack $ n1s#(0,-3) <> takeLast 2 n1s <> n1s#(-3,-2))
+        & \seed -> (ceiling $ (realToFrac seed / 99999.0) * 0xffff)
+        & \seed -> f (f 0 (seed .&. 0xff) 0x1064b) (seed `shiftR` 8) 0x1064b
+        & \seed -> BS.foldl' (\seed c -> f seed (ord c) 0x1064b) seed (BS.reverse str)
+      n2s = iterateN seed 0x1064b 0 & normalize & stringify
+  in LBS.toStrict . Builder.toLazyByteString $
+       n2s!3 <> n1s!3 <> n1s!1 <> n1s!0 <> Builder.char8 '-'
+    <> n2s!4 <> n1s!2 <> n2s!0 <> Builder.char8 '-'
+    <> n2s!2 <> n1s!4 <> n2s!1 <> Builder.byteString "::1"
   where
-    bs ! i = BS.char8 (bs `BS.index` i)
-    bs # (x, y) = BS.take (j-i) . BS.drop i $ bs
+    bs ! i = Builder.char8 (bs `BS.index` i)       -- Builder from bs[i]
+    bs # (x, y) = BS.take (j-i) . BS.drop i $ bs   -- Slice bs[x,y]
       where n = BS.length bs
             (i, j) = (x `mod` n, y `mod` n)
     stringify x = takeLast 5 $ "0000" <> BS.pack (show x)
+    normalize n = floor $ realToFrac (n .&. 0xffff) * 99999.0 / 0xffff
 
     takeLast :: Int -> ByteString -> ByteString
     takeLast n bs = BS.drop (BS.length bs - n) bs
 
     iterateN :: Int -> Int -> Int -> Int
     iterateN p q n =
-      if f1 (f1 p (n .&. 0xff) q) (n `shiftR` 8) q /= 0xa5b6
-      then if n + 1 >= 0xffff
-           then error "n compute error"
-           else iterateN p q (n+1)
-      else n
+      if n >= 0xffff
+      then error "n compute error"
+      else if f (f p (n .&. 0xff) q) (n `shiftR` 8) q /= 0xa5b6
+           then iterateN p q (n+1)
+           else n
+
+    f :: Int -> Int -> Int -> Int    -- The 'f1' function in reference.js
+    f n byte c = foldl' g n [0..7]
+      where
+        g n i = let bit = (byte `shiftR` i) .&. 1 in
+          if bit + ((n - bit) .&. (complement 1)) == n
+          then (n - bit) `shiftR` 1
+          else ((c - bit) `xor` n) `shiftR` 1
 
 main = do
   BS.putStr "MathID: "
@@ -85,7 +80,7 @@ main = do
   when (not (mathIdValid mathID)) $
     error "Invalid Math ID!"
   activationKey <- genActivationKey
-  magic <- randomChoice magicNumbers
+  magic <- choose magicNumbers
   let password = genPassword mathID activationKey magic
 
   BS.putStr "Activation Key: "
@@ -94,7 +89,5 @@ main = do
   BS.putStrLn password
 
   where
-    randomChoice :: [a] -> IO a
-    randomChoice xs = do
-      i <- randomRIO (0, length xs - 1)
-      pure (xs !! i)
+    choose :: [a] -> IO a
+    choose xs = (xs !!) <$> randomRIO (0, length xs - 1)
