@@ -1,0 +1,52 @@
+cabal-version:      2.4
+name:               raytracer
+version:            0.1.0.0
+
+executable raytracer
+    main-is:          Main.hs
+    ghc-options:      -Wall -Wcompat -Wincomplete-record-updates -Wredundant-constraints -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-partial-type-signatures -threaded -rtsopts -with-rtsopts=-N -O2 -fllvm
+    build-depends:    base >=4.15.1.0 && < 5
+                    , lens >= 5.1
+                    , linear ^>= 1.21
+                    , massiv ^>= 1.0
+                    , massiv-io ^>= 1.0
+                    , random ^>= 1.2
+    default-language: Haskell2010
+    default-extensions:
+      ApplicativeDo
+      BangPatterns
+      ConstraintKinds
+      DataKinds
+      DefaultSignatures
+      DeriveFoldable
+      DeriveFunctor
+      DeriveGeneric
+      DeriveLift
+      DeriveTraversable
+      DerivingStrategies
+      EmptyCase
+      ExistentialQuantification
+      FlexibleContexts
+      FlexibleInstances
+      FunctionalDependencies
+      GADTs
+      GeneralizedNewtypeDeriving
+      InstanceSigs
+      KindSignatures
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NumericUnderscores
+      OverloadedStrings
+      PartialTypeSignatures
+      PatternSynonyms
+      RankNTypes
+      RecordWildCards
+      ScopedTypeVariables
+      StandaloneDeriving
+      TupleSections
+      TypeApplications
+      TypeFamilies
+      TypeFamilyDependencies
+      TypeOperators
