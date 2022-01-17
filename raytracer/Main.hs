@@ -14,10 +14,9 @@ module Main where
 import           Control.Lens ((^.))
 import           Data.Foldable
 import           Data.IORef
-import           Data.Massiv.Array as A
+import           Data.Massiv.Array as A hiding (fold)
 import qualified Data.Massiv.Array.IO as A
 import           Data.Massiv.Array.IO hiding (Image, Pixel)
-import           Data.Maybe
 import           Linear.Metric
 import           Linear.V3
 import           Linear.Vector
@@ -260,17 +259,17 @@ randomMaterial = do
 
 randomScene :: IO (Some Surface)
 randomScene = do
-  let randomObj :: Int -> Int -> IO (Maybe (Some Surface))
+  let randomObj :: Int -> Int -> IO [Some Surface]
       randomObj a b = do
         da <- randomRIO (0, 1.0)
         db <- randomRIO (0, 1.0)
         let center = V3 (realToFrac a + 0.9*da) 0.2 (realToFrac b + 0.9*db)
         if (distance center (V3 4 0.2 0) > 0.9)
           then do mat <- randomMaterial
-                  return . Just . Some $ Sphere center 0.2 mat
-          else do return Nothing
+                  return $ [Some $ Sphere center 0.2 mat]
+          else do return []
 
-  objs <- catMaybes <$> sequence [randomObj a b | a <- [-11..10], b <- [-11..10]]
+  objs <- fold [randomObj a b | a <- [-11..10], b <- [-11..10]]
 
   let s1 = Some $ Sphere (V3 0 1 0) 1.0 (dielectric 1.5)
       s2 = Some $ Sphere (V3 (-4) 1 0) 1.0 (lambertian (V3 0.4 0.2 0.1))
