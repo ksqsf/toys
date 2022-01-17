@@ -5,7 +5,7 @@ version:            0.1.0.0
 executable raytracer
     main-is:          Main.hs
     ghc-options:      -Wall -Wcompat -Wincomplete-record-updates -Wredundant-constraints -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-partial-type-signatures -threaded -rtsopts -with-rtsopts=-N -O2 -fllvm
-    build-depends:    base >=4.15.1.0 && < 5
+    build-depends:    base >=4.15 && < 5
                     , lens >= 5.1
                     , linear ^>= 1.21
                     , massiv ^>= 1.0
