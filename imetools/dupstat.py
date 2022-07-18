@@ -162,7 +162,7 @@ def report_dup(
         elif idx == 3:
             third_selection.append((ch, code, l))
         else:
-            other_selection.append((ch, code, l))
+            other_selection.append((ch, code, l, idx))
 
     if notfound_len is not None:
         for ch in notfound:
@@ -171,16 +171,23 @@ def report_dup(
 
     print(' - 总字数:', n_chars)
     print(' - 平均码长:', total_len / n_chars)
-    print(' - 未编码字:', notfound)
+    print(' - 未编码字 (%d):' % len(notfound), notfound)
     print(' - 首选率:', (len(first_selection) / n_chars) * 100, '%', ', 共', len(first_selection), '字')
     print(' - 选重率:', (len(second_selection) + len(third_selection) + len(other_selection)) / n_chars * 100, '%', ', 共', (len(second_selection) + len(third_selection) + len(other_selection)), '字')
     print('   - 次选率:', (len(second_selection) / n_chars) * 100, '%', ', 共', len(second_selection), '字')
     print('   - 三选率:', (len(third_selection) / n_chars) * 100, '%', ', 共', len(third_selection), '字')
     print('   - 其他选率:', (len(other_selection) / n_chars) * 100, '%', ', 共', len(other_selection), '字')
 
-    print(' * 次选字:', second_selection)
-    print(' * 三选字:', third_selection)
-    print(' * 三选以上字:', other_selection)
+    # print(' * 次选字:', second_selection)
+    # print(' * 三选字:', third_selection)
+    # print(' * 三选以上字:', other_selection)
+
+    # for ch, code, _ in second_selection:
+    #     print('%s\t%s\t%s' % (ch, code, '2'))
+    # for ch, code, _ in third_selection:
+    #     print('%s\t%s\t%s' % (ch, code, '3'))
+    # for ch, code, _, idx in other_selection:
+    #     print('%s\t%s\t%s' % (ch, code, str(idx)))
 
 def report(charset, table):
     # find_nodup: 尽量取不重的码。例如，「華」若有码 a，而「工」有码 a 并且优先级更高，那么「華」不会取到 a，而是 agag。
@@ -192,8 +199,12 @@ def report(charset, table):
 newwb = Table('newwb.txt', code_first=False)
 newwb_full = Table('newwb_full.txt')
 # newwbt = Table('newwb.txt', code_first=False, to_trad=True)
+wb86 = Table('wb86.txt')
+wb86_full = Table('wb86_full.txt')
 wb98 = Table('98wb.txt')
 wb98_full = Table('98wb_full.txt')
+wb06 = Table('wb06.txt', code_first=False)
+wb06_full = Table('wb06_full.txt')
 # wb98t = Table('98wb.txt', to_trad=True)
 tiger = Table('tiger.txt')
 tiger_full = Table('tiger_full.txt')
@@ -204,6 +215,9 @@ xuma_full = Table('xuma_full.txt')
 smzm = Table('smzm.txt', code_first=False, max_len=3)
 # smzmt = Table('smzm.txt', code_first=False, to_trad=True, max_len=3)
 cj5 = Table('Cangjie5.txt', code_first=False, max_len=5)
+
+# 986五笔
+t = Table('986wb.txt')
 
 
 # GB1_SIMP 国标一级字

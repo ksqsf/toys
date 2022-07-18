@@ -7,12 +7,12 @@ fp = sys.argv[1]
 t2c = dict()
 with open(fp) as f:
     for line in f:
-        # [text, *codes] = line.split()
-        # for code in codes:
-        #     t2c[text] = code
-        [code, *texts] = line.split()
-        for text in texts:
+        [text, *codes] = line.split()
+        for code in codes:
             t2c[text] = code
+        # [code, *texts] = line.split()
+        # for text in texts:
+        #     t2c[text] = code
 
 c2t = dict()
 for t in t2c.keys():
