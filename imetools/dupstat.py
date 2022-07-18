@@ -80,7 +80,7 @@ class Table:
         """
         tmp = []
         for code in self.t2c[char]:
-            if len(self.c2t[code]) == 1:
+            if self.c2t[code][0] == char:
                 return code, 1
             else:
                 for i, char_ in enumerate(self.c2t[code]):
@@ -104,6 +104,32 @@ class Table:
         _, idx, code = tmp[0]
         return code, idx+1
 
+    def find_nodup_2allowed(self, char):
+        """
+        同 find_nodup, 但是允许次选.
+        """
+        # 查找有没有在 1 / 2 选位置的
+        tmp = []
+        for code in self.t2c[char]:
+            num_cands = len(self.c2t[code])
+            for i in range(min(2, num_cands)):
+                if self.c2t[code][i] == char:
+                    tmp.append((len(code), i+1, code))
+        tmp.sort()
+        if len(tmp)>0:
+            codelen, idx, code = tmp[0]
+            return code, idx
+
+        # 1 / 2 选处没找到, 重新找码, 取 (序号, 码长) 最小的
+        tmp = []
+        for code in self.t2c[char]:
+            for i, char_ in enumerate(self.c2t[code]):
+                if char_ == char:
+                    tmp.append((i, len(code), code))
+        tmp.sort()
+        idx, _, code = tmp[0]
+        return code, idx + 1
+
     def to_trad(self):
         codes = list(self.c2t.keys())
         for code in codes:
@@ -121,7 +147,8 @@ def report_dup(
         find_fn,  # 查找单字的函数
         selection_to_length=None,   # select_to_lengths[n] 表示第 n 选位上上; 如果是 None, 除首选外全部视为 1
         notfound_len=None,   # 没找到的字相当于 notfound_len 长度的字。如果是 None，忽略这些字，仅在最后报告。
-        max_len=4            # 最大码长
+        max_len=4,            # 最大码长
+        stdout=True
 ):
     first_selection = []   # 首选
     second_selection = []  # 次选
@@ -147,6 +174,8 @@ def report_dup(
                 return len(code) + selection_to_length[idx]
 
     for ch in charset:
+        if ch.strip() == '':
+            continue
         try:
             code, idx = find_fn(ch)
         except KeyError:
@@ -169,31 +198,38 @@ def report_dup(
             n_chars += 1
             total_len += notfound_len
 
-    print(' - 总字数:', n_chars)
-    print(' - 平均码长:', total_len / n_chars)
-    print(' - 未编码字 (%d):' % len(notfound), notfound)
-    print(' - 首选率:', (len(first_selection) / n_chars) * 100, '%', ', 共', len(first_selection), '字')
-    print(' - 选重率:', (len(second_selection) + len(third_selection) + len(other_selection)) / n_chars * 100, '%', ', 共', (len(second_selection) + len(third_selection) + len(other_selection)), '字')
-    print('   - 次选率:', (len(second_selection) / n_chars) * 100, '%', ', 共', len(second_selection), '字')
-    print('   - 三选率:', (len(third_selection) / n_chars) * 100, '%', ', 共', len(third_selection), '字')
-    print('   - 其他选率:', (len(other_selection) / n_chars) * 100, '%', ', 共', len(other_selection), '字')
+    if stdout:
+        print(' - 总字数:', n_chars)
+        print(' - 平均码长:', total_len / n_chars)
+        print(' - 未编码字 (%d):' % len(notfound), notfound)
+        print(' - 首选率:', (len(first_selection) / n_chars) * 100, '%', ', 共', len(first_selection), '字')
+        print(' - 选重率:', (len(second_selection) + len(third_selection) + len(other_selection)) / n_chars * 100, '%', ', 共', (len(second_selection) + len(third_selection) + len(other_selection)), '字')
+        print('   - 次选率:', (len(second_selection) / n_chars) * 100, '%', ', 共', len(second_selection), '字')
+        print('   - 三选率:', (len(third_selection) / n_chars) * 100, '%', ', 共', len(third_selection), '字')
+        print('   - 其他选率:', (len(other_selection) / n_chars) * 100, '%', ', 共', len(other_selection), '字')
 
-    # print(' * 次选字:', second_selection)
-    # print(' * 三选字:', third_selection)
-    # print(' * 三选以上字:', other_selection)
+        # print(' * 次选字:', second_selection)
+        # print(' * 三选字:', third_selection)
+        # print(' * 三选以上字:', other_selection)
+        
+        # for ch, code, _ in first_selection:
+        #     print('%s\t%s\t%s' % (ch, code, '1'))
+        for ch, code, _ in second_selection:
+            print('%s\t%s\t%s' % (ch, code, '2'))
+        for ch, code, _ in third_selection:
+            print('%s\t%s\t%s' % (ch, code, '3'))
+        for ch, code, _, idx in other_selection:
+            print('%s\t%s\t%s' % (ch, code, str(idx)))
 
-    # for ch, code, _ in second_selection:
-    #     print('%s\t%s\t%s' % (ch, code, '2'))
-    # for ch, code, _ in third_selection:
-    #     print('%s\t%s\t%s' % (ch, code, '3'))
-    # for ch, code, _, idx in other_selection:
-    #     print('%s\t%s\t%s' % (ch, code, str(idx)))
+    return total_len / n_chars, (len(second_selection) + len(third_selection) + len(other_selection)), len(notfound)
 
-def report(charset, table):
+
+def report(charset, table, stdout=True):
     # find_nodup: 尽量取不重的码。例如，「華」若有码 a，而「工」有码 a 并且优先级更高，那么「華」不会取到 a，而是 agag。
     #             如果无论如何都要
+    # find_nodup_2allowed: 同 find_nodup，但是允许次选被优先选中。
     # find_short: 不顾选重，尽量取最短的码。
-    report_dup(charset, table.find_nodup, max_len=table.max_len)
+    return report_dup(charset, table.find_nodup_2allowed, max_len=table.max_len, stdout=stdout)
 
 
 newwb = Table('newwb.txt', code_first=False)
@@ -218,7 +254,36 @@ cj5 = Table('Cangjie5.txt', code_first=False, max_len=5)
 
 # 986五笔
 t = Table('986wb.txt')
+t_full = Table('986wb_full.txt')
 
+def report_all():
+    CHARSETS = [
+        ('前500 (简体)', SIMP[:500]),
+        ('前1500 (简体)', SIMP[:1500]),
+        ('前500 (繁体)', TRAD[:500]),
+        ('前1500 (繁体)', TRAD[:1500]),
+        ('     GB2312-1', GB1_SIMP),
+        ('    GB2312-全', GB_SIMP),
+        ('       BIG5-1', BIG5)
+    ]
+
+    TABLES = [
+        ('五  笔  86', wb86),
+        ('五  笔  98', wb98),
+        ('五笔新世纪', wb06),
+        ('986  五 笔', t),
+        ('牛      码', newwb),
+        ('徐      码', xuma),
+        ('虎      码', tiger),
+        ('仓颉 五代', cj5),
+        ('三码 郑码', smzm)
+    ]
+
+    import itertools
+
+    for ((charset_name, charset), (table_name, table)) in itertools.product(CHARSETS, TABLES):
+        length, ndups, nnotfound = report(charset, table, stdout=False)
+        print(f'{charset_name}\t{table_name}\t{length:.2f}\t{ndups}\t{nnotfound}')
 
 # GB1_SIMP 国标一级字
 # GB2_SIMP 国标二级字
