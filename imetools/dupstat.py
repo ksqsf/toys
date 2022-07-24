@@ -8,139 +8,8 @@
 # 1. 避重情况, 即尽可能避重后的重码数量及其码长。
 # 2. 选重情况, 即全码的重码数量及其码长。
 
-
+from table import Table
 from common import *
-from opencc import OpenCC
-
-
-opencc = OpenCC('s2t.json')
-
-
-class Table:
-    def __init__(self, table_file,
-                 code_first=True,  # code_first=True  => abcd 选项1 选项2
-                                   # code_first=False => 文字 abcd efgh
-                 only_chars=True,  # True 表示去掉词语
-                 to_trad=False,    # 繁体字优先
-                 only_full=False,
-                 max_len=4
-                 ):
-        # code to text.
-        self.c2t = dict()
-        # text to code.
-        self.t2c = dict()
-        # 全码
-        self.c2t = dict()
-        self.only_full = only_full
-        self.max_len = max_len
-        if code_first:
-            self._load_code_first(table_file, only_chars)
-        else:
-            self._load_text_first(table_file, only_chars)
-        if to_trad:
-            self.to_trad()
-
-    def add_c2t(self, code, text):
-        if code not in self.c2t:
-            self.c2t[code] = []
-        self.c2t[code].append(text)
-
-    def add_t2c(self, text, code):
-        if text not in self.t2c:
-            self.t2c[text] = []
-        self.t2c[text].append(code)
-
-    def _load_code_first(self, table_file, only_chars):
-        with open(table_file) as file:
-            for line in file:
-                [input, *outputs] = line.split()
-                if len(outputs) == 0:
-                    continue
-                for output in outputs:
-                    if only_chars and len(output) > 1:
-                        continue
-                    self.add_c2t(input, output)
-                    self.add_t2c(output, input)
-
-    def _load_text_first(self, table_file, only_chars):
-        with open(table_file) as file:
-            for line in file:
-                [output, *inputs] = line.split()
-                if len(inputs) == 0:
-                    continue
-                if only_chars and len(output) > 1:
-                    continue
-                for input in inputs:
-                    self.add_c2t(input, output)
-                    self.add_t2c(output, input)
-
-    def find_nodup(self, char):
-        """
-        返回：最佳码，第几重 (首选是 1)
-        """
-        tmp = []
-        for code in self.t2c[char]:
-            if self.c2t[code][0] == char:
-                return code, 1
-            else:
-                for i, char_ in enumerate(self.c2t[code]):
-                    if char_ == char:
-                        tmp.append((i, len(code), code))
-        # 无论如何都有重码, 取 (序号, 码长) 最小的
-        tmp.sort()
-        idx, _, code = tmp[0]
-        return code, idx + 1
-
-    def find_short(self, char):
-        """
-        返回：最佳码，第几重 (首选是 1)
-        """
-        tmp = []
-        for code in self.t2c[char]:
-            for i, char_ in enumerate(reversed(self.c2t[code])):
-                if char_ == char:
-                    tmp.append((len(code), i, code))
-        tmp.sort()
-        _, idx, code = tmp[0]
-        return code, idx+1
-
-    def find_nodup_2allowed(self, char):
-        """
-        同 find_nodup, 但是允许次选.
-        """
-        # 查找有没有在 1 / 2 选位置的
-        tmp = []
-        for code in self.t2c[char]:
-            num_cands = len(self.c2t[code])
-            for i in range(min(2, num_cands)):
-                if self.c2t[code][i] == char:
-                    tmp.append((len(code), i+1, code))
-        tmp.sort()
-        if len(tmp)>0:
-            codelen, idx, code = tmp[0]
-            return code, idx
-
-        # 1 / 2 选处没找到, 重新找码, 取 (序号, 码长) 最小的
-        tmp = []
-        for code in self.t2c[char]:
-            for i, char_ in enumerate(self.c2t[code]):
-                if char_ == char:
-                    tmp.append((i, len(code), code))
-        tmp.sort()
-        idx, _, code = tmp[0]
-        return code, idx + 1
-
-    def to_trad(self):
-        codes = list(self.c2t.keys())
-        for code in codes:
-            # 把非繁体字挪到后排.
-            self.c2t[code].sort(key=lambda c: not is_trad(c))
-
-
-def is_trad(ch):
-    # 只是一个近似.
-    return ch == opencc.convert(ch)
-
 
 def report_dup(
         charset,  # 字符集
@@ -229,32 +98,42 @@ def report(charset, table, stdout=True):
     #             如果无论如何都要
     # find_nodup_2allowed: 同 find_nodup，但是允许次选被优先选中。
     # find_short: 不顾选重，尽量取最短的码。
-    return report_dup(charset, table.find_nodup_2allowed, max_len=table.max_len, stdout=stdout)
+    return report_dup(charset, table.find_nodup, max_len=table.max_len, stdout=stdout)
 
 
-newwb = Table('newwb.txt', code_first=False)
-newwb_full = Table('newwb_full.txt')
-# newwbt = Table('newwb.txt', code_first=False, to_trad=True)
-wb86 = Table('wb86.txt')
-wb86_full = Table('wb86_full.txt')
-wb98 = Table('98wb.txt')
-wb98_full = Table('98wb_full.txt')
-wb06 = Table('wb06.txt', code_first=False)
-wb06_full = Table('wb06_full.txt')
-# wb98t = Table('98wb.txt', to_trad=True)
-tiger = Table('tiger.txt')
-tiger_full = Table('tiger_full.txt')
-# tigert = Table('tiger.txt', to_trad=True)
-xuma = Table('xuma.txt')
-xuma_full = Table('xuma_full.txt')
-# xumat = Table('xuma.txt', to_trad=True)
+# newwb = Table('newwb.txt', code_first=False)
+# newwb_full = Table('newwb_full.txt')
+# # newwbt = Table('newwb.txt', code_first=False, to_trad=True)
+# wb86 = Table('wb86.txt')
+# wb86_full = Table('wb86_full.txt')
+# wb98 = Table('98wb.txt')
+# wb98_full = Table('98wb_full.txt')
+# wb06 = Table('wb06.txt', code_first=False)
+# wb06_full = Table('wb06_full.txt')
+# # wb98t = Table('98wb.txt', to_trad=True)
+# tiger = Table('tiger.txt')
+# tiger_full = Table('tiger_full.txt')
+# # tigert = Table('tiger.txt', to_trad=True)
+# xuma = Table('xuma.txt')
+# xuma_full = Table('xuma_full.txt')
+# # xumat = Table('xuma.txt', to_trad=True)
 smzm = Table('smzm.txt', code_first=False, max_len=3)
 # smzmt = Table('smzm.txt', code_first=False, to_trad=True, max_len=3)
-cj5 = Table('Cangjie5.txt', code_first=False, max_len=5)
+# cj5 = Table('Cangjie5.txt', code_first=False, max_len=5)
+# # 986五笔
+# t = Table('986wb.txt')
+# t_full = Table('986wb_full.txt')
 
-# 986五笔
-t = Table('986wb.txt')
-t_full = Table('986wb_full.txt')
+# zm = Table('zm.txt', code_first=False)
+# srm = Table('srm.dict.yaml', rime=1)
+
+# A = Table('NewTimeA.dict.yaml', rime=1)
+# B = Table('NewTimeB.dict.yaml', rime=1)
+# S = Table('NewTimeS.dict.yaml', rime=1)
+
+# xhup = Table('/tmp/xhup.txt', code_first=True)
+
+sm = Table('/tmp/sm.dict.yaml', rime=1)
 
 def report_all():
     CHARSETS = [
@@ -268,20 +147,28 @@ def report_all():
     ]
 
     TABLES = [
-        ('五  笔  86', wb86),
-        ('五  笔  98', wb98),
-        ('五笔新世纪', wb06),
-        ('986  五 笔', t),
-        ('牛      码', newwb),
-        ('徐      码', xuma),
-        ('虎      码', tiger),
-        ('仓颉 五代', cj5),
-        ('三码 郑码', smzm)
+        # ('五  笔  86', wb86),
+        # ('五  笔  98', wb98),
+        # ('五笔新世纪', wb06),
+        # ('986  五 笔', t),
+        # ('牛      码', newwb),
+        # ('徐      码', xuma),
+        # ('虎      码', tiger),
+        # ('仓颉 五代', cj5),
+        # ('三码 郑码', smzm)
+        # ('郑码', zm)
+        # ('山人', srm)
+        # ('新纪元A', A),
+        # ('新纪元B', B),
+        # ('新纪元S', S),
+        # ('小鹤音形', xhup)
+        ('矧码', sm)
     ]
 
     import itertools
 
-    for ((charset_name, charset), (table_name, table)) in itertools.product(CHARSETS, TABLES):
+    for ((table_name, table), (charset_name, charset)) in itertools.product(TABLES, CHARSETS):
+#    for ((charset_name, charset), (table_name, table)) in itertools.product(CHARSETS, TABLES):
         length, ndups, nnotfound = report(charset, table, stdout=False)
         print(f'{charset_name}\t{table_name}\t{length:.2f}\t{ndups}\t{nnotfound}')
 

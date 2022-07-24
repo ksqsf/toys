@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+
+import traceback
 import asyncio
 import sys
 import logging
@@ -28,13 +31,14 @@ async def print_msg(client, msg, f):
         print(f'{fullname}: <sticker {msg.content.sticker.emoji}> ({suffix})', file=f)
     else:
         print(f'{fullname}: <{msg.content.ID}> ({suffix})', file=f)
+    f.flush()
 
 
-async def main():
+async def main(chat_id):
     client = Client(
         api_id=cfg['API_ID'],
         api_hash=cfg['API_HASH'],
-        phone_number=cfg['PHONE']
+        phone_number=cfg['PHONE'],
     )
     async with client:
         me = await client.api.get_me()
@@ -50,7 +54,7 @@ async def main():
             message_thread_id=0,
             offset=0,
             sender_id=MessageSenderUser(user_id=my_id),
-            request_timeout=30
+            request_timeout=100,
         )
 
         latest_message = batch.messages[0]
@@ -64,7 +68,8 @@ async def main():
                 filter_=SearchMessagesFilterEmpty(),
                 message_thread_id=0,
                 offset=0,
-                sender_id=MessageSenderUser(user_id=my_id)
+                sender_id=MessageSenderUser(user_id=my_id),
+                request_timeout=30
             )
 
             if batch.total_count == 0:
@@ -72,12 +77,16 @@ async def main():
             for msg in batch.messages:
                 cur_id = msg.id
                 if msg.can_be_deleted_for_all_users:
-                    await print_msg(client, msg, f=sys.stderr)
-                    await client.api.delete_messages(chat_id=chat_id, message_ids=[msg.id], revoke=True)
+                    await print_msg(client, msg, f=sys.stdout)
+                    await client.api.delete_messages(chat_id=chat_id, message_ids=[msg.id], revoke=True, request_timeout=30)
 
 logging.basicConfig(level=logging.INFO)
 def run():
-    asyncio.run(main())
+    try:
+        asyncio.run(main(chat_id))
+    except:
+        print('Exception raised during deleting messages of chat_id ', chat_id)
+        traceback.print_exc()
 
 if __name__ == '__main__':
     run()

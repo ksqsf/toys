@@ -44,7 +44,8 @@ def load():
     # add fillers
     for _ in range(len(ret)):
         ret.append((0.0, '#'))
-    return ret
+
+        return ret
 
 
 @dataclass(order=True)
