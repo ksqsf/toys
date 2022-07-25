@@ -111,7 +111,7 @@ def report(charset, table, stdout=True):
 # wb06 = Table('wb06.txt', code_first=False)
 # wb06_full = Table('wb06_full.txt')
 # # wb98t = Table('98wb.txt', to_trad=True)
-# tiger = Table('tiger.txt')
+tiger = Table('tiger.txt')
 # tiger_full = Table('tiger_full.txt')
 # # tigert = Table('tiger.txt', to_trad=True)
 # xuma = Table('xuma.txt')
@@ -132,8 +132,7 @@ smzm = Table('smzm.txt', code_first=False, max_len=3)
 # S = Table('NewTimeS.dict.yaml', rime=1)
 
 # xhup = Table('/tmp/xhup.txt', code_first=True)
-
-sm = Table('/tmp/sm.dict.yaml', rime=1)
+# sm = Table('/tmp/sm.dict.yaml', rime=1)
 
 def report_all():
     CHARSETS = [
@@ -192,7 +191,7 @@ def report_all():
 # * 徐码的简繁静重和码长出简时略均高于牛码，并且不太依赖简码，只看全码的话是很优秀的。
 #         不出简，GB2312 选重 189字，BIG5-1 选重 224 字。
 #           出简，GB2312 选重 181字，BIG5-1 选重 224 字。
-# * 五笔 98 版在我算的几个 4 码方案中最烂。
+# * 五笔 98 版在我算的几个 4 码方案中最烂，但在五笔家族中最好。
 # * 仓颉静重无敌！码长也无敌……长！
 #
 # 数据看 dupstat.xlsx。
