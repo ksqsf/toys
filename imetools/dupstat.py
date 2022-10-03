@@ -17,7 +17,7 @@ def report_dup(
         selection_to_length=None,   # select_to_lengths[n] 表示第 n 选位上上; 如果是 None, 除首选外全部视为 1
         notfound_len=None,   # 没找到的字相当于 notfound_len 长度的字。如果是 None，忽略这些字，仅在最后报告。
         max_len=4,            # 最大码长
-        stdout=True
+        stdout=True,
 ):
     first_selection = []   # 首选
     second_selection = []  # 次选
@@ -102,22 +102,24 @@ def report(charset, table, stdout=True):
 
 
 # newwb = Table('newwb.txt', code_first=False)
-# newwb_full = Table('newwb_full.txt')
-# # newwbt = Table('newwb.txt', code_first=False, to_trad=True)
-# wb86 = Table('wb86.txt')
-# wb86_full = Table('wb86_full.txt')
-# wb98 = Table('98wb.txt')
-# wb98_full = Table('98wb_full.txt')
-# wb06 = Table('wb06.txt', code_first=False)
-# wb06_full = Table('wb06_full.txt')
-# # wb98t = Table('98wb.txt', to_trad=True)
+# # newwb_full = Table('newwb_full.txt')
+# # # newwbt = Table('newwb.txt', code_first=False, to_trad=True)
+wb86 = Table('wb86.txt')
+# # wb86_full = Table('wb86_full.txt')
+wb98 = Table('98wb.txt')
+# # wb98_full = Table('98wb_full.txt')
+# # wb06 = Table('wb06.txt', code_first=False)
+# # wb06_full = Table('wb06_full.txt')
+# # # wb98t = Table('98wb.txt', to_trad=True)
+# tiger0 = Table('tiger.txt')
 tiger = Table('tiger.txt')
-# tiger_full = Table('tiger_full.txt')
-# # tigert = Table('tiger.txt', to_trad=True)
-# xuma = Table('xuma.txt')
+tiger_trad = Table('/tmp/huma.txt', code_first=False, only_chars=True)
+# # tiger_full = Table('tiger_full.txt')
+# # # tigert = Table('tiger.txt', to_trad=True)
+# xuma = Table('xuma.txt', only_charsets=['big5'])
 # xuma_full = Table('xuma_full.txt')
 # # xumat = Table('xuma.txt', to_trad=True)
-smzm = Table('smzm.txt', code_first=False, max_len=3)
+# smzm = Table('smzm.txt', code_first=False, max_len=3)
 # smzmt = Table('smzm.txt', code_first=False, to_trad=True, max_len=3)
 # cj5 = Table('Cangjie5.txt', code_first=False, max_len=5)
 # # 986五笔
@@ -133,6 +135,11 @@ smzm = Table('smzm.txt', code_first=False, max_len=3)
 
 # xhup = Table('/tmp/xhup.txt', code_first=True)
 # sm = Table('/tmp/sm.dict.yaml', rime=1)
+
+# array = Table('/tmp/array.txt', code_first=False)
+# lbs = Table('/tmp/lbs.txt', code_first=False)
+
+# xm = Table('/tmp/虾码.txt', code_first=False, max_len=4)
 
 def report_all():
     CHARSETS = [
@@ -161,7 +168,10 @@ def report_all():
         # ('新纪元B', B),
         # ('新纪元S', S),
         # ('小鹤音形', xhup)
-        ('矧码', sm)
+        # ('矧码', sm)
+        # ('10.2', ue)
+        # ('蓝宝石', lbs)
+        ('虎', tiger_trad)
     ]
 
     import itertools
@@ -169,7 +179,7 @@ def report_all():
     for ((table_name, table), (charset_name, charset)) in itertools.product(TABLES, CHARSETS):
 #    for ((charset_name, charset), (table_name, table)) in itertools.product(CHARSETS, TABLES):
         length, ndups, nnotfound = report(charset, table, stdout=False)
-        print(f'{charset_name}\t{table_name}\t{length:.2f}\t{ndups}\t{nnotfound}')
+        print(f'{charset_name}\t{table_name}\t{length:.3f}\t{ndups}\t{nnotfound}')
 
 # GB1_SIMP 国标一级字
 # GB2_SIMP 国标二级字

@@ -12,7 +12,8 @@ class Table:
                  to_trad=False,    # 繁体字优先
                  only_full=False,
                  max_len=4,
-                 rime=None         # rime dict.yaml, 类型整数；表示 code 在第几列
+                 rime=None,         # rime dict.yaml, 类型整数；表示 code 在第几列
+                 only_charsets=[]
                  ):
         # code to text.
         self.c2t = dict()
@@ -23,12 +24,12 @@ class Table:
         self.only_full = only_full
         self.max_len = max_len
         if rime is not None:
-            self._load_rime(table_file, only_chars, rime)
+            self._load_rime(table_file, only_chars, rime, only_charsets)
         else:
             if code_first:
-                self._load_code_first(table_file, only_chars)
+                self._load_code_first(table_file, only_chars, only_charsets)
             else:
-                self._load_text_first(table_file, only_chars)
+                self._load_text_first(table_file, only_chars, only_charsets)
             
         if to_trad:
             self.to_trad()
@@ -43,7 +44,7 @@ class Table:
             self.t2c[text] = []
         self.t2c[text].append(code)
 
-    def _load_code_first(self, table_file, only_chars):
+    def _load_code_first(self, table_file, only_chars, only_charsets):
         with open(table_file) as file:
             for line in file:
                 [input, *outputs] = line.split()
@@ -52,13 +53,33 @@ class Table:
                 for output in outputs:
                     if only_chars and len(output) > 1:
                         continue
+                    try:
+                        for cs in only_charsets:
+                            output.encode(cs)
+                    except UnicodeEncodeError:
+                        continue
                     self.add_c2t(input, output)
                     self.add_t2c(output, input)
 
-    def _load_text_first(self, table_file, only_chars):
+    def _load_text_first(self, table_file, only_chars, only_charsets):
         with open(table_file) as file:
+            lineno = 0
             for line in file:
-                [output, *inputs] = line.split()
+                lineno += 1
+                try:
+                    [output, *inputs] = line.split()
+                except Exception as e:
+                    print('excepted line {}:'.format(lineno), line)
+                    raise e
+                ok = True
+                for cs in only_charsets:
+                    try:
+                        output.encode(cs)
+                    except UnicodeEncodeError:
+                        ok = False
+                        break
+                if not ok:
+                    continue
                 if len(inputs) == 0:
                     continue
                 if only_chars and len(output) > 1:
@@ -67,7 +88,7 @@ class Table:
                     self.add_c2t(input, output)
                     self.add_t2c(output, input)
 
-    def _load_rime(self, table_file, only_chars, code_column):
+    def _load_rime(self, table_file, only_chars, code_column, only_charsets):
         with open(table_file) as file:
             for line in file:
                 parts = line.split()
@@ -83,8 +104,16 @@ class Table:
                     continue
                 if only_chars and len(text) > 1:
                     continue
-                self.add_c2t(code, text)
-                self.add_t2c(text, code)
+                ok = True
+                for cs in only_charsets:
+                    try:
+                        text.encode(cs)
+                    except UnicodeEncodeError:
+                        ok = False
+                        break
+                if ok:
+                    self.add_c2t(code, text)
+                    self.add_t2c(text, code)
 
     def find_nodup(self, char):
         """
