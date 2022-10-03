@@ -55,7 +55,7 @@ async def cmd_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     major = next(it, '').strip()
     minor = next(it, '').strip()
 
-    if major == '' or minor == '':
+    if major == '' and minor == '':
         await update.message.reply_text('请提供书名和章节号, 用法: /checkin 书名, 章节 (书名和章节名中不能有英文逗号)')
         return
 
@@ -64,15 +64,15 @@ async def cmd_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     else:
         transient[user_id] = (major, minor, pd.Timestamp.now())
-        # await update.message.reply_text('OK')
+        await update.message.reply_text('OK')
 
 async def cmd_abandon(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update['message']['from']['id']
     if user_id in transient:
         del transient[user_id]
-    #     await update.message.reply_text('完事儿')
-    # else:
-    #     await update.message.reply_text('不要停下来啊！！')
+        await update.message.reply_text('完事儿')
+    else:
+        await update.message.reply_text('不要停下来啊！！')
 
 async def cmd_checkout(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update['message']['from']['id']
@@ -85,7 +85,7 @@ async def cmd_checkout(update: Update, context: ContextTypes.DEFAULT_TYPE):
     checkout_time = pd.Timestamp.now()
     add_record(user_id, major, minor, checkin_time, checkout_time)
     del transient[user_id]
-    # await update.message.reply_text('完事儿')
+    await update.message.reply_text(f'读了 {checkout_time - checkin_time}, 常来玩~')
 
 async def cmd_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update['message']['from']['id']
