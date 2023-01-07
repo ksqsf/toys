@@ -1,0 +1,32 @@
+cabal-version:      2.4
+name:               haskells
+version:            0.1.0.0
+
+-- A short (one-line) description of the package.
+-- synopsis:
+
+-- A longer description of the package.
+-- description:
+
+-- A URL where users can report bugs.
+-- bug-reports:
+
+-- The license under which the package is released.
+-- license:
+author:             ksqsf
+maintainer:         i@ksqsf.moe
+
+-- A copyright notice.
+-- copyright:
+-- category:
+extra-source-files: CHANGELOG.md
+
+library
+    exposed-modules:  MyPrelude,
+                      MyLens,
+                      MyServer
+
+    build-depends:    base ^>=4.14.1.0, aeson, containers, lens, lens-aeson, mtl, text, either
+    default-language: Haskell2010
+    other-extensions: OverloadedStrings
+

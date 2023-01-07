@@ -1,0 +1,2 @@
+packages: dt/*.cabal badapple/*.cabal
+          
