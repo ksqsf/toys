@@ -104,16 +104,16 @@ def report(charset, table, stdout=True):
 # newwb = Table('newwb.txt', code_first=False)
 # # newwb_full = Table('newwb_full.txt')
 # # # newwbt = Table('newwb.txt', code_first=False, to_trad=True)
-wb86 = Table('wb86.txt')
+# wb86 = Table('wb86.txt')
 # # wb86_full = Table('wb86_full.txt')
-wb98 = Table('98wb.txt')
+# wb98 = Table('98wb.txt')
 # # wb98_full = Table('98wb_full.txt')
 # # wb06 = Table('wb06.txt', code_first=False)
 # # wb06_full = Table('wb06_full.txt')
 # # # wb98t = Table('98wb.txt', to_trad=True)
 # tiger0 = Table('tiger.txt')
-tiger = Table('tiger.txt')
-tiger_trad = Table('/tmp/huma.txt', code_first=False, only_chars=True)
+# tiger = Table('tiger.txt')
+# tiger_trad = Table('/tmp/huma.txt', code_first=False, only_chars=True)
 # # tiger_full = Table('tiger_full.txt')
 # # # tigert = Table('tiger.txt', to_trad=True)
 # xuma = Table('xuma.txt', only_charsets=['big5'])
@@ -140,6 +140,8 @@ tiger_trad = Table('/tmp/huma.txt', code_first=False, only_chars=True)
 # lbs = Table('/tmp/lbs.txt', code_first=False)
 
 # xm = Table('/tmp/虾码.txt', code_first=False, max_len=4)
+
+sbfd = Table('sbfd.dict.yaml', rime=1)
 
 def report_all():
     CHARSETS = [
@@ -171,7 +173,8 @@ def report_all():
         # ('矧码', sm)
         # ('10.2', ue)
         # ('蓝宝石', lbs)
-        ('虎', tiger_trad)
+        # ('虎', tiger_trad)
+        ('声笔飞单', sbfd)
     ]
 
     import itertools
