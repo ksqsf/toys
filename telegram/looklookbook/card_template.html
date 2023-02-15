@@ -1,0 +1,86 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+         body {
+             font-family: 'sans-serif';
+         }
+
+         .card {
+             width: 400px;
+             margin-left: auto;
+             margin-right: auto;
+         }
+
+         .banner-image {
+             background-image: url('{{banner_image_url}}');
+             width: 400px;
+             height: 300px;
+         }
+
+         .information {
+             display: -webkit-box;
+             display: flex;
+         }
+
+         .name {
+             padding-bottom: 5px;
+             text-align: center;
+         }
+
+         .avatar {
+             padding-top: 10px;
+             padding-left: 10px;
+         }
+
+         .avatar > img {
+             margin: auto;
+             width: 80px;
+         }
+
+         .date {
+             margin-top: auto;
+             margin-bottom: auto;
+             margin-left: auto;
+             padding-right: 20px;
+         }
+
+         .detail {
+             margin: auto;
+             display: -webkit-box;
+             display: flex;
+         }
+
+         .col {
+             padding: 0 0 20px 20px;
+         }
+        </style>
+    </head>
+    <body class="card">
+        <div class="banner-image">
+        </div>
+
+        <div class="footer">
+            <div class="information">
+                <div class="avatar"><img src="{{avatar}}"><p class="name">{{name}}</p></div>
+                <div class="date"><h1>{{date}}</h1></div>
+            </div>
+
+            <div class="detail">
+                <div class="col">
+                    <h3>{{today}} 分钟</h3>
+                    <p>今日阅读时长</p>
+                </div>
+                <div class="col">
+                    <h3>{{streak}} 天</h3>
+                    <p>连续打卡天数</p>
+                </div>
+                <div class="col">
+                    <h3>{{total}} 天</h3>
+                    <p>累计打卡天数</p>
+                </div>
+            </div>
+        </div>
+
+    </body>
+</html>
