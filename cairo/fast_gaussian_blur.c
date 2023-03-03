@@ -39,27 +39,9 @@ boxes_for_gaussian (double sigma, int n)
   return sizes;
 }
 
-v4f
-uc2f (v4uc v)
-{
-  return (v4f) {
-    v[0] / 128.0f, v[1] / 128.0f, v[2] / 128.0f, v[3] / 128.0f
-  };
-}
-
-v4uc
-f2uc (v4f v)
-{
-  return (v4uc) {
-    v[0] * 128.0f, v[1] * 128.0f, v[2] * 128.0f, v[3] * 128.0f
-  };
-}
-
-v4uc
-scaled_mult4 (v4uc v, float x)
-{
-  return f2uc (uc2f (v) * x);
-}
+#define uc2f(v) (__builtin_convertvector((v), v4f) / 128.0f)
+#define f2uc(v) (__builtin_convertvector((v) * 128.0f, v4uc))
+#define scaled_mult4(v,x) (f2uc(uc2f((v))*x))
 
 static void
 box_blur_h (v4uc *s, v4uc *t, int w, int h, int r)
@@ -137,34 +119,42 @@ box_blur (cairo_surface_t *s, cairo_surface_t *t, int w, int h, int r)
 }
 
 static void
-gaussian_blur (cairo_surface_t *s, cairo_surface_t *t, int w, int h, double r)
+gaussian_blur (cairo_surface_t *s, double r)
 {
   int *boxes = boxes_for_gaussian (r, 3);
   printf ("Boxes = %d %d %d\n", boxes[0], boxes[1], boxes[2]);
-  box_blur (s, t, w, h, (boxes[0] - 1.0) / 2.0);
-  box_blur (t, s, w, h, (boxes[1] - 1.0) / 2.0);
-  box_blur (s, t, w, h, (boxes[2] - 1.0) / 2.0);
+  
+  int w = cairo_image_surface_get_width (s);
+  int h = cairo_image_surface_get_height (s);
+  
+  cairo_surface_t *t = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, w, h);
+  
+  v4uc *sdata = (v4uc *) cairo_image_surface_get_data (s);
+  v4uc *tdata = (v4uc *) cairo_image_surface_get_data (t);
+  
+  box_blur_h (sdata, tdata, w, h, (boxes[0] - 1.0) / 2.0);
+  box_blur_t (tdata, sdata, w, h, (boxes[0] - 1.0) / 2.0);
+  box_blur_h (sdata, tdata, w, h, (boxes[1] - 1.0) / 2.0);
+  box_blur_t (tdata, sdata, w, h, (boxes[1] - 1.0) / 2.0);
+  box_blur_h (sdata, tdata, w, h, (boxes[2] - 1.0) / 2.0);
+  box_blur_t (tdata, sdata, w, h, (boxes[2] - 1.0) / 2.0);
+  
+  cairo_surface_destroy (t);
 }
 
 int
 main ()
 {
-  cairo_surface_t *source, *target;
-  int w, h;
+  cairo_surface_t *source;
   clock_t begin, end;
 
   source = cairo_image_surface_create_from_png ("cballs.png");
-  w = cairo_image_surface_get_width (source);
-  h = cairo_image_surface_get_height (source);
-
-  target = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, w, h);
 
   begin = clock ();
-  gaussian_blur (source, target, w, h, 5);
+  gaussian_blur (source, 5);
   end = clock ();
   printf ("Time = %g\n", (double)(end - begin) / CLOCKS_PER_SEC);
 
-  cairo_surface_write_to_png (target, "output.png");
+  cairo_surface_write_to_png (source, "output.png");
   cairo_surface_destroy (source);
-  cairo_surface_destroy (target);
 }

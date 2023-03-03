@@ -1,0 +1,17 @@
+* fast gaussian blur
+
+an SIMD version of Ivan Kutskir's [[https://blog.ivank.net/fastest-gaussian-blur.html][Fastest Gaussian Blur (in linear time)]].
+
+([[https://gcc.gnu.org/onlinedocs/gcc/Vector-Extensions.html][GCC vector extension]] is pretty nice!)
+
+TABLE: various optimizations and their effects (top = new, bottom = old)
+
+| input file | implementation          | optimizations                  |     time |
+|------------+-------------------------+--------------------------------+----------|
+| cballs.png | use intrinsics + inline | clang -O3 -march=native -mavx2 | 0.003154 |
+| cballs.png | use intrinsics + inline | clang -O3                      | 0.003222 |
+| cballs.png | reduce memcpy           | clang -O3 -march=native -mavx2 | 0.005254 |
+| cballs.png | reduce memcpy           | clang -O3                      | 0.005410 |
+| cballs.png | slide window            | clang -O3 -march=native -mavx2 | 0.005357 |
+| cballs.png | slide window            | clang -O3                      | 0.005987 |
+| cballs.png | separate kernel         | clang -O3                      | 0.028168 |
