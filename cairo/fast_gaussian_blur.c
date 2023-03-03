@@ -118,6 +118,16 @@ box_blur (cairo_surface_t *s, cairo_surface_t *t, int w, int h, int r)
   box_blur_t (sdata, tdata, w, h, r);
 }
 
+#define TIME
+
+#ifdef TIME
+#define START do { clock_t begin, end; begin = clock();
+#define END(label) end = clock(); printf("%s: %f\n", label, (double)(end-begin)/CLOCKS_PER_SEC); } while(0)
+#else
+#define START do {
+#define END(label) } while (0)
+#endif
+
 static void
 gaussian_blur (cairo_surface_t *s, double r)
 {
@@ -132,12 +142,29 @@ gaussian_blur (cairo_surface_t *s, double r)
   v4uc *sdata = (v4uc *) cairo_image_surface_get_data (s);
   v4uc *tdata = (v4uc *) cairo_image_surface_get_data (t);
 
+  START;
   box_blur_h (sdata, tdata, w, h, (boxes[0] - 1.0) / 2.0);
+  END("h1");
+
+  START;
   box_blur_t (tdata, sdata, w, h, (boxes[0] - 1.0) / 2.0);
+  END("t1");
+
+  START;
   box_blur_h (sdata, tdata, w, h, (boxes[1] - 1.0) / 2.0);
+  END("h2");
+
+  START;
   box_blur_t (tdata, sdata, w, h, (boxes[1] - 1.0) / 2.0);
+  END("t2");
+
+  START;
   box_blur_h (sdata, tdata, w, h, (boxes[2] - 1.0) / 2.0);
+  END("h3");
+
+  START;
   box_blur_t (tdata, sdata, w, h, (boxes[2] - 1.0) / 2.0);
+  END("t3");
 
   cairo_surface_destroy (t);
 }
