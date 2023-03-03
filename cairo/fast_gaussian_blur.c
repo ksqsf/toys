@@ -65,31 +65,61 @@ static void
 box_blur_h (v4uc *s, v4uc *t, int w, int h, int r)
 {
   float iarr = 1.0f / (r + r + 1.0f);
-  for (int i = 0; i < h; ++i) {
-    for (int j = 0; j < w; ++j) {
-      t[i*w+j] = (v4uc){0};
-      for (int k = -r; k <= r; ++k) {
-        if (j+k >= 0 && j + k < w)
-          t[i*w+j] += scaled_mult4(s[i*w+j+k], iarr);
-      }
+  for (int i = 0; i < h; ++i)
+    {
+      int ti = i * w, li = ti, ri = ti + r;
+      v4uc fv = s[ti], lv = s[ti+w-1];
+      v4f val = uc2f(fv) * (float)(r+1);
+      for(int j=0;j<r;++j)
+        val += uc2f(s[ti+j]);
+      for(int j=0;j<=r;++j)
+        {
+          val += uc2f(s[ri++])-uc2f(fv);
+          t[ti++] = f2uc(val*iarr);
+        }
+      for(int j=r+1;j<w-r;++j)
+        {
+          val += uc2f(s[ri++])-uc2f(s[li++]);
+          t[ti++] = f2uc(val*iarr);
+        }
+      for(int j=w-r;j<w;++j)
+        {
+          val += uc2f(lv)-uc2f(s[li++]);
+          t[ti++] = f2uc(val*iarr);
+        }
     }
-  }
 }
 
 static void
 box_blur_t (v4uc *s, v4uc *t, int w, int h, int r)
 {
   float iarr = 1.0f / (r + r + 1.0f);
-  for (int i = 0; i < h; ++i) {
-    for (int j = 0; j < w; ++j) {
-      t[i*w+j] = (v4uc){0};
-      for (int k = -r; k <= r; ++k) {
-        if (i + k >= 0 && i + k < h) {
-          t[i*w+j] += scaled_mult4 (s[(i+k)*w+j], iarr);
+  for (int i = 0; i < w; ++i)
+    {
+      int ti = i, li = ti, ri = ti+r*w;
+      v4uc fv = s[ti], lv = s[ti+w*(h-1)];
+      v4f val = uc2f(fv) * (float)(r+1);
+      for(int j=0; j<r; ++j)
+        val += uc2f(s[ti+j*w]);
+      for(int j=0; j<=r; ++j)
+        {
+          val += uc2f(s[ri]) - uc2f(fv);
+          t[ti] = f2uc(val*iarr);
+          ri+=w; ti+=w;
         }
-      }
+      for(int j=r+1; j<h-r; ++j)
+        {
+          val += uc2f(s[ri]) - uc2f(s[li]);
+          t[ti] = f2uc(val*iarr);
+          li+=w; ri+=w; ti+=w;
+        }
+      for(int j=h-r; j<h; ++j)
+        {
+          val += uc2f(lv) - uc2f(s[li]);
+          t[ti] = f2uc(val*iarr);
+          li+=w; ti+=w;
+        }
     }
-  }
 }
 
 static void
