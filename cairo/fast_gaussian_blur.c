@@ -123,37 +123,52 @@ gaussian_blur (cairo_surface_t *s, double r)
 {
   int *boxes = boxes_for_gaussian (r, 3);
   printf ("Boxes = %d %d %d\n", boxes[0], boxes[1], boxes[2]);
-  
+
   int w = cairo_image_surface_get_width (s);
   int h = cairo_image_surface_get_height (s);
-  
+
   cairo_surface_t *t = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, w, h);
-  
+
   v4uc *sdata = (v4uc *) cairo_image_surface_get_data (s);
   v4uc *tdata = (v4uc *) cairo_image_surface_get_data (t);
-  
+
   box_blur_h (sdata, tdata, w, h, (boxes[0] - 1.0) / 2.0);
   box_blur_t (tdata, sdata, w, h, (boxes[0] - 1.0) / 2.0);
   box_blur_h (sdata, tdata, w, h, (boxes[1] - 1.0) / 2.0);
   box_blur_t (tdata, sdata, w, h, (boxes[1] - 1.0) / 2.0);
   box_blur_h (sdata, tdata, w, h, (boxes[2] - 1.0) / 2.0);
   box_blur_t (tdata, sdata, w, h, (boxes[2] - 1.0) / 2.0);
-  
+
   cairo_surface_destroy (t);
 }
 
 int
-main ()
+main (int argc, char *argv[])
 {
   cairo_surface_t *source;
   clock_t begin, end;
+  double secs;
+  int w, h;
 
-  source = cairo_image_surface_create_from_png ("cballs.png");
+  if (argc < 2)
+    {
+      fprintf (stderr, "USAGE: fast_gaussian_blur <PNG_FILE>\n");
+      return 1;
+    }
+
+  source = cairo_image_surface_create_from_png (argv[1]);
+
+  w = cairo_image_surface_get_width (source);
+  h = cairo_image_surface_get_height (source);
+  printf ("Image geometry %d x %d\n", w, h);
 
   begin = clock ();
   gaussian_blur (source, 5);
   end = clock ();
-  printf ("Time = %g\n", (double)(end - begin) / CLOCKS_PER_SEC);
+  secs = (double)(end - begin) / CLOCKS_PER_SEC;
+  printf ("Time = %g secs\n", secs);
+  printf ("Average %g ns per pixel\n", secs * 1e9 / w / h);
+  printf ("Average %g pixels per ns\n", w * h / (secs * 1e9));
 
   cairo_surface_write_to_png (source, "output.png");
   cairo_surface_destroy (source);
