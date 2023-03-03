@@ -9,6 +9,7 @@ TABLE: various optimizations and their effects (top = new, bottom = old)
 
 | input file | implementation          | optimizations                     |     time |
 |------------+-------------------------+-----------------------------------+----------|
+| cballs.png | openmp                  | clang -Ofast -march=native -mavx2 | 0.002267 |
 | cballs.png | use intrinsics + inline | clang -Ofast -march=native -mavx2 | 0.001788 |
 | cballs.png | use intrinsics + inline | clang -O3 -march=native -mavx2    | 0.003154 |
 | cballs.png | use intrinsics + inline | clang -O3                         | 0.003222 |
@@ -23,6 +24,10 @@ On my machine, the best result is ~30 cycles per pixel. Is it good or
 bad?  I don't know.  This number also seems to increase when the image
 gets larger.  If the image is 3840x2160, it will take ~100 cycles per
 pixel.  Probably due to bad locality.
+
+OpenMP does not perform well on smaller images, as expected.  However,
+it substantially improves the performance on large images, to
+something like 10ns per px.
 
 ** Memory access
 

@@ -8,6 +8,15 @@
 #include <math.h>
 #include <cairo.h>
 
+//#define TIME
+#ifdef TIME
+#define START do { struct timespec begin, end; clock_gettime(CLOCK_MONOTONIC, &begin);
+#define END(label) clock_gettime(CLOCK_MONOTONIC, &end); printf("%s: %f\n", label, (double) (end.tv_sec - begin.tv_sec) + (double) (end.tv_nsec - begin.tv_nsec) / 1e9 ); } while(0)
+#else
+#define START do {
+#define END(label) } while (0)
+#endif
+
 typedef unsigned char uc;
 typedef unsigned char v4uc __attribute__((vector_size (4)));
 typedef float v4f __attribute__((vector_size (16)));
@@ -47,6 +56,7 @@ static void
 box_blur_h (v4uc *s, v4uc *t, int w, int h, int r)
 {
   float iarr = 1.0f / (r + r + 1.0f);
+#pragma omp parallel for
   for (int i = 0; i < h; ++i)
     {
       int ti = i * w, li = ti, ri = ti + r;
@@ -76,6 +86,7 @@ static void
 box_blur_t (v4uc *s, v4uc *t, int w, int h, int r)
 {
   float iarr = 1.0f / (r + r + 1.0f);
+#pragma omp parallel for
   for (int i = 0; i < w; ++i)
     {
       int ti = i, li = ti, ri = ti+r*w;
@@ -117,16 +128,6 @@ box_blur (cairo_surface_t *s, cairo_surface_t *t, int w, int h, int r)
   box_blur_h (tdata, sdata, w, h, r);
   box_blur_t (sdata, tdata, w, h, r);
 }
-
-#define TIME
-
-#ifdef TIME
-#define START do { clock_t begin, end; begin = clock();
-#define END(label) end = clock(); printf("%s: %f\n", label, (double)(end-begin)/CLOCKS_PER_SEC); } while(0)
-#else
-#define START do {
-#define END(label) } while (0)
-#endif
 
 static void
 gaussian_blur (cairo_surface_t *s, double r)
@@ -173,7 +174,7 @@ int
 main (int argc, char *argv[])
 {
   cairo_surface_t *source;
-  clock_t begin, end;
+  struct timespec begin, end;
   double secs;
   int w, h;
 
@@ -189,10 +190,10 @@ main (int argc, char *argv[])
   h = cairo_image_surface_get_height (source);
   printf ("Image geometry %d x %d\n", w, h);
 
-  begin = clock ();
+  clock_gettime (CLOCK_MONOTONIC, &begin);
   gaussian_blur (source, 5);
-  end = clock ();
-  secs = (double)(end - begin) / CLOCKS_PER_SEC;
+  clock_gettime (CLOCK_MONOTONIC, &end);
+  secs = (double) (end.tv_sec - begin.tv_sec) + (double) (end.tv_nsec - begin.tv_nsec) / 1e9;
   printf ("Time = %g secs\n", secs);
   printf ("Average %g ns per pixel\n", secs * 1e9 / w / h);
   printf ("Average %g pixels per ns\n", w * h / (secs * 1e9));
