@@ -40,3 +40,13 @@ something like 10ns per px.
 | h3       | 0.015984 |
 | t3       | 0.087203 |
 
+=fast_gaussian_blur_transpose.c= tries to solve the locality issue by
+transposing the output matrix.  On a 4634x3091 image with openmp
+enabled this gives 10% speedup:
+
+- before: 0.144s
+- after:  0.126s
+
+
+=box_blur_1d= penalizes horizontal blurring, but accelerates vertical
+blurring.  So... Yet another trade-off.

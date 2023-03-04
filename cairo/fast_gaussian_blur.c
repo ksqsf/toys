@@ -8,7 +8,7 @@
 #include <math.h>
 #include <cairo.h>
 
-//#define TIME
+#define TIME
 #ifdef TIME
 #define START do { struct timespec begin, end; clock_gettime(CLOCK_MONOTONIC, &begin);
 #define END(label) clock_gettime(CLOCK_MONOTONIC, &end); printf("%s: %f\n", label, (double) (end.tv_sec - begin.tv_sec) + (double) (end.tv_nsec - begin.tv_nsec) / 1e9 ); } while(0)
