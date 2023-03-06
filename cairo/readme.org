@@ -50,3 +50,8 @@ enabled this gives 10% speedup:
 
 =box_blur_1d= penalizes horizontal blurring, but accelerates vertical
 blurring.  So... Yet another trade-off.
+
+** Comparison with OpenCV
+
+OpenCV is blazingly fast for large images (<3ns per pixel).  It is
+slower on small images like =cballs.png=.
