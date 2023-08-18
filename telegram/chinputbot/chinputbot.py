@@ -52,6 +52,10 @@ schemas = [
     ('xhyx', '小鹤音形', load_table('xhyx.txt', 1, 0), 4),
     ('wb98', '五笔98', load_table('wb98.txt', 1, 0), 4),
     ('wb86', '五笔86', load_table_code_texts('wb86.txt'), 4),
+    ('cj5', '倉頡五代', load_table('cangjie5.txt', 1, 0), 5),
+    ('tiger', '虎码', load_table('tiger.txt', 0, 1), 4),
+    ('yht', '宇浩繁體', load_table('yht.txt', 1, 0), 4),
+    ('yhs', '宇浩简体', load_table('yht.txt', 1, 0), 4),
 ]
 
 
