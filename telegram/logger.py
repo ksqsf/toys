@@ -12,7 +12,9 @@ import re
 load_dotenv()
 BOT_TOKEN = os.getenv('AVGI_BOT_TOKEN')
 MY_ID = os.getenv('MY_ID')
-
+ALWAYS_ALLOW_CHATS = [
+    "-1001407473692"
+]
 
 # Enable logging
 logging.basicConfig(
@@ -22,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Create a sqlite3 database with two tables
 db = sqlite3.connect('logs.db')
-db.execute('create table if not exists logs (id integer primary key, userid integer, username text, fullname text, chatid integer, chatname text, message text, time timestamp default current_timestamp)')
+db.execute('create table if not exists logs (id integer primary key, userid integer, username text, fullname text, chatid integer, chatname text, message text, messageid integer, time timestamp default current_timestamp)')
 db.execute('create table if not exists chat_state (id integer primary key, chatid integer, auth_state text)')
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -32,8 +34,9 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     chatid = update.message.chat.id
     chatname = update.message.chat.title
     message = update.message.text
+    messageid = update.message.id
     print(f'收到消息 from {username} in {chatname}: {message[:10]}')
-    a = db.execute('insert into logs (userid, username, fullname, chatid, chatname, message) values (?, ?, ?, ?, ?, ?)', (userid, username, fullname, chatid, chatname, message))
+    a = db.execute('insert into logs (userid, username, fullname, chatid, chatname, message, messageid) values (?, ?, ?, ?, ?, ?, ?)', (userid, username, fullname, chatid, chatname, message, messageid))
     db.commit()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -44,9 +47,14 @@ async def check_search_ok(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if not is_group:
         return True
 
-    # Check the auth_state
     chatid = update.message.chat.id
     senderid = update.message.from_user.id
+    if str(chatid) in ALWAYS_ALLOW_CHATS:
+        return True
+    # if str(senderid) == str(MY_ID):
+    #     return True
+
+    # Check the auth_state
     auth_state = db.execute('select auth_state from chat_state where chatid = ?', (str(chatid),)).fetchone()
     if auth_state:
         if auth_state[0] == 'member':
@@ -55,7 +63,7 @@ async def check_search_ok(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             member = await update.message.chat.get_member(senderid)
             return member.status == 'administrator' or member.status == 'creator'
         else:
-            return str(sender_id) == str(MY_ID)
+            return str(senderid) == str(MY_ID)
     else:
         # No auth state yet, insert the default state 'admin'
         db.execute('insert into chat_state (chatid, auth_state) values (?, ?)', (str(chatid), 'admin'))
@@ -63,6 +71,20 @@ async def check_search_ok(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # Proceed as if auth_state is 'admin'
         member = await update.message.chat.get_member(senderid)
         return member.status == 'administrator' or member.status == 'creator'
+
+
+def remove_prefix(str, prefix):
+    if str.startswith(prefix):
+        return str[len(prefix):]
+    else:
+        return str
+
+
+def message_link(chat, messageid) -> str:
+    if chat.username:
+        return f'https://t.me/{chat.username}/{messageid}'
+    else:
+        return f'https://t.me/c/{remove_prefix(str(chat.id), "-100")}/{messageid}'
 
 
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE, order: str) -> None:
@@ -82,13 +104,19 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE, order: str)
         search_terms = search_terms[1:]
     search_term_query = '%' + '%'.join(search_terms) + '%'
 
-    chatid = update.message.chat.id
+    chat = update.message.chat
+    chatid = chat.id
     reply = ''
-    cursor = db.execute('select chatname, username, fullname, message from logs where chatid = ? and message like ? order by time %s' % order, (str(chatid), search_term_query))
-    for (chatname, username, fullname, message) in cursor.fetchall():
-        reply += f'[{chatname}] {fullname}: {message}\n'
+    page_size = 20
+    query = f'SELECT chatname, username, fullname, message, messageid FROM logs WHERE chatid = ? AND message like ? ORDER BY time {order} LIMIT {page_size} OFFSET ?'
+    cursor = db.execute(query, (str(chatid), search_term_query, page*page_size))
+    for (chatname, username, fullname, message, messageid) in cursor.fetchall():
+        if messageid:
+            reply += f'[{chatname}] {fullname}: <a href="{message_link(chat, messageid)}">⤴</a> {message}\n'
+        else:
+            reply += f'[{chatname}] {fullname}: {message}\n'
     if reply:
-        await update.message.reply_text(reply[page*4096:(page+1)*4096])
+        await update.message.reply_html(reply)
     else:
         logging.info('empty response for search term ' + str(search_terms))
 
