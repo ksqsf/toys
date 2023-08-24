@@ -27,7 +27,7 @@ db = sqlite3.connect('logs.db')
 db.execute('create table if not exists logs (id integer primary key, userid integer, username text, fullname text, chatid integer, chatname text, message text, messageid integer, time timestamp default current_timestamp)')
 db.execute('create table if not exists chat_state (id integer primary key, chatid integer, auth_state text)')
 
-async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def new_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     userid = update.message.from_user.id
     username = update.message.from_user.username
     fullname = update.message.from_user.full_name
@@ -35,8 +35,20 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     chatname = update.message.chat.title
     message = update.message.text
     messageid = update.message.id
-    print(f'收到消息 from {username} in {chatname}: {message[:10]}')
-    a = db.execute('insert into logs (userid, username, fullname, chatid, chatname, message, messageid) values (?, ?, ?, ?, ?, ?, ?)', (userid, username, fullname, chatid, chatname, message, messageid))
+    print(f'收到新消息 from {username} in {chatname}: {message[:10]}')
+    db.execute('insert into logs (userid, username, fullname, chatid, chatname, message, messageid) values (?, ?, ?, ?, ?, ?, ?)', (userid, username, fullname, chatid, chatname, message, messageid))
+    db.commit()
+
+async def edited_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    userid = update.edited_message.from_user.id
+    username = update.edited_message.from_user.username
+    fullname = update.edited_message.from_user.full_name
+    chatid = update.edited_message.chat.id
+    chatname = update.edited_message.chat.title
+    message = update.edited_message.text
+    messageid = update.edited_message.id
+    print(f'{username} 编辑了消息 in {chatname}: {message[:10]}')
+    db.execute('update logs set username = ?, fullname = ?, message = ? where chatid = ? and messageid = ?', (username, fullname, message, chatid, messageid))
     db.commit()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -112,7 +124,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE, order: str)
     cursor = db.execute(query, (str(chatid), search_term_query, page*page_size))
     for (chatname, username, fullname, message, messageid) in cursor.fetchall():
         if messageid:
-            reply += f'[{chatname}] {fullname}: <a href="{message_link(chat, messageid)}">⤴</a> {message}\n'
+            reply += f'[{chatname}] {fullname}: <a href="{message_link(chat, messageid)}">⤴️</a> {message}\n'
         else:
             reply += f'[{chatname}] {fullname}: {message}\n'
     if reply:
@@ -175,7 +187,8 @@ def main() -> None:
     application.add_handler(CommandHandler("setsearch", setsearch))
 
     # on non command i.e message
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.UpdateType.MESSAGE, new_message_handler))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.UpdateType.EDITED, edited_message_handler))
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling()
