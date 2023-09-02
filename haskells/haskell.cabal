@@ -22,11 +22,11 @@ maintainer:         i@ksqsf.moe
 extra-source-files: CHANGELOG.md
 
 library
-    exposed-modules:  MyPrelude,
-                      MyLens,
-                      MyServer
+    exposed-modules: MyPrelude
+                   , MyLens
+                   , MyServer
+                   , MyLaziness
 
-    build-depends:    base ^>=4.14.1.0, aeson, containers, lens, lens-aeson, mtl, text, either
+    build-depends:    base, aeson, containers, lens, lens-aeson, mtl, text, either
     default-language: Haskell2010
     other-extensions: OverloadedStrings
-

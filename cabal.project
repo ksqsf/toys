@@ -1,2 +1,2 @@
-packages: dt/*.cabal badapple/*.cabal
+packages: badapple/*.cabal haskells/*.cabal
           
