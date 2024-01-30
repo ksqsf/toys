@@ -26,7 +26,7 @@ void Bot::run()
     }
 }
 
-nlohmann::json Bot::makeRequest(const std::string& methodName, const nlohmann::json& body) 
+nlohmann::json Bot::makeRequest(const std::string& methodName, const nlohmann::json& body)
 try {
     std::string api = "https://api.telegram.org/bot"s + token_ + "/"s + methodName;
     std::cerr << "Making request to " << methodName << " with body " << body.dump(2) << std::endl;
@@ -96,44 +96,41 @@ void Bot::trigger(nlohmann::json& update)
     }
 }
 
-Botoid<Message>& Bot::get_reply_to(const Message& awaited)
+Botoid<Message>& Bot::get_first_msg(std::function<bool(const Message&)> f)
 {
-    auto awaited_id = awaited["message_id"];
     auto botoid_ptr = std::make_unique<Botoid<>>();
     Botoid<>& botoid = *botoid_ptr;
     botoids_.emplace(botoid.id, std::move(botoid_ptr));
-    // Register a new trigger, so we get notified when new updates come.
-    triggers_.emplace_front([awaited_id, &botoid, this](const Update& update) {
+    triggers_.emplace_front([f, &botoid, this](const Update& update) {
         auto& new_msg = update["message"];
-        if (!new_msg.contains("reply_to_message"))
+        if (f(new_msg)) {
+            botoid.set_value(new_msg);
+            botoid.parent_.resume();
+            botoids_.erase(botoid.id);
+            return TriggerResult::StopAndComplete;
+        } else {
             return TriggerResult::Continue;
-        auto& replied = new_msg["reply_to_message"];
-        if (replied["message_id"] != awaited_id)
-            return TriggerResult::Continue;
-        // Got it!
-        botoid.set_value(new_msg);
-        botoid.parent_.resume();
-        botoids_.erase(botoid.id);
-        return TriggerResult::StopAndComplete;
+        }
     });
     return botoid;
 }
 
-Botoid<Message>& Bot::get_message_in_chat(int chat_id) {
-    auto botoid_ptr = std::make_unique<Botoid<>>();
-    Botoid<>& botoid = *botoid_ptr;
-    botoids_.emplace(botoid.id, std::move(botoid_ptr));
-    triggers_.emplace_front([chat_id, &botoid, this](const Update& update) {
-        auto& new_msg = update["message"];
-        int new_chat_id = new_msg["chat"]["id"];
-        if (new_chat_id != chat_id)
-            return TriggerResult::Continue;
-        botoid.set_value(new_msg);
-        botoid.parent_.resume();
-        botoids_.erase(botoid.id);
-        return TriggerResult::StopAndComplete;
+Botoid<Message>& Bot::get_reply_to(const Message& awaited)
+{
+    auto awaited_id = awaited["message_id"];
+    return get_first_msg([awaited_id](const Message& new_msg) {
+        if (!new_msg.contains("reply_to_message"))
+            return false;
+        auto& replied = new_msg["reply_to_message"];
+        return replied["message_id"] == awaited_id;
     });
-    return botoid;
+}
+
+Botoid<Message>& Bot::get_message_in_chat(int chat_id) {
+    return get_first_msg([chat_id](const Message& new_msg) {
+        int new_chat_id = new_msg["chat"]["id"];
+        return new_chat_id == chat_id;
+    });
 }
 
 }

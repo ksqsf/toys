@@ -98,7 +98,7 @@ public:
         return (bool) value_;
     }
     
-    // `co_await` returns (parent_ is resumed).
+    // `co_await` returns (called when parent_ is resumed from co_await).
     YieldType await_resume() {
         return value_.value();
     }
@@ -165,6 +165,7 @@ public: // bot API
     }
     
 public: // botoid special API
+    Botoid<Message>& get_first_msg(std::function<bool(const Message&)> f);
     Botoid<Message>& get_reply_to(const Message& msg);
     Botoid<Message>& get_message_in_chat(int chat_id);
 };
