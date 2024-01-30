@@ -123,6 +123,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE, order: str)
     query = f'SELECT chatname, username, fullname, message, messageid FROM logs WHERE chatid = ? AND message like ? ORDER BY time {order} LIMIT {page_size} OFFSET ?'
     cursor = db.execute(query, (str(chatid), search_term_query, page*page_size))
     for (chatname, username, fullname, message, messageid) in cursor.fetchall():
+        message = message.replace('<', '&lt;').replace('>', '&gt;')
         if messageid:
             reply += f'[{chatname}] {fullname}: <a href="{message_link(chat, messageid)}">⤴️</a> {message}\n'
         else:
