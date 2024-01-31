@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["_rika <i@ksqsf.moe>"]
 
 [dependencies]
-tokio = "0.1.8"
+tokio = "1.18.5"
 futures = "0.1.23"
 failure = "0.1.2"
 sha1 = "0.6.0"
