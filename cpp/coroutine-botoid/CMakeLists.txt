@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.27)
 project(botoid)
 set(CMAKE_CXX_STANDARD 20)
 
-set(CMAKE_CXX_FLAGS "-Wall -fsanitize=address")
+set(CMAKE_CXX_FLAGS "-Wall -fsanitize=address -fexperimental-library")  # std::format is still experimental
 
 # dependencies
 find_package(PkgConfig REQUIRED)

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <format>
 
 using namespace std::literals::string_literals;
 using namespace botoid;
@@ -19,7 +20,7 @@ Botoid<> restartable_bot(observer_ptr<Bot> bot, Message last_msg);
 
 int main()
 {
-    Bot bot{"BOT TOKEN"};
+    Bot bot{"6713492415:AAEUzeOoQa1jZZsgyFT5WqeUWga-rsGt06M"};
     bot.command("sum", sum_bot);
     bot.command("greet", greet_bot);
     bot.command("foo", restartable_bot);
@@ -51,15 +52,14 @@ Botoid<> sum_bot(observer_ptr<Bot> bot, Message last_msg)
             continue;
         }
         try {
-            char buf[1024];
-            snprintf(buf, sizeof(buf), "the sum so far is %d\n", sum);
-            last_msg = bot->reply(msg, buf);
+            last_msg = bot->reply(msg, std::format("the sum so far is {}", sum));
         } catch(const std::exception& e) {
             std::cerr << "cannot send message: " << e.what() << "\n";
         }
     }
 }
 
+// Compare it to https://github.com/teloxide/teloxide?tab=readme-ov-file#dialogues-management
 Botoid<> greet_bot(observer_ptr<Bot> bot, Message last_msg)
 {
     int chat_id = last_msg["chat"]["id"];
@@ -73,9 +73,7 @@ Botoid<> greet_bot(observer_ptr<Bot> bot, Message last_msg)
     bot->sendMessage(chat_id, "What's your location");
     std::string location = (co_await bot->get_message_in_chat(chat_id))["text"];
 
-    char buf[1024];
-    snprintf(buf, 1024, "Name: %s\nAge: %s\nLocation: %s", name.c_str(), age.c_str(), location.c_str());
-    bot->sendMessage(chat_id, buf);
+    bot->sendMessage(chat_id, std::format("Name: {}\nAge: {}\nLocation: {}\n", name, age, location));
 }
 
 struct States {
@@ -131,11 +129,9 @@ try {
             continue;
         }
         try {
-            char buf[1024];
-            snprintf(buf, sizeof(buf), "the sum so far is %d\n", states.sum);
-            last_msg = bot->reply(msg, buf);
+            last_msg = bot->reply(msg, std::format("the sum so far is {}", states.sum));
             // Only save states when the user is notified of the updated result.
-            states>.save();
+            states.save();
         } catch(const std::exception& e) {
             std::cerr << "cannot send message: " << e.what() << "\n";
         }
