@@ -4,3 +4,5 @@ rklisp/
 .DS_Store
 cabal.project.local
 dist-newstyle/
+build/
+.projectile

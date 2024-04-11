@@ -41,6 +41,7 @@ int main(int argc, char *argv[])
         }
     } else {
         printf("%s\n", [[error localizedDescription] cStringUsingEncoding:NSUTF8StringEncoding]);
+        [error dealloc];
     }
     CGImageRelease(cgImage);
     CGDataProviderRelease(provider);
